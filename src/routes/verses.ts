@@ -5,14 +5,10 @@ import {
   parseMultipleReferences,
 } from "../services/reference-parser";
 import {
-  loadTranslation,
-  getBook,
-  getChapter,
-  getVerse,
-  getVerseRange,
   getDefaultTranslation,
   getTranslationMeta,
-  getTranslationsByLanguage,
+  getVerseFromDb,
+  getVerseRangeFromDb,
 } from "../services/bible-loader";
 import { DEFAULT_LANGUAGE, LANGUAGES } from "../data/books";
 import type {
@@ -57,19 +53,6 @@ verses.get("/", async (c) => {
     );
   }
 
-  const bible = await loadTranslation(translation.id);
-  if (!bible) {
-    return c.json(
-      {
-        error: {
-          code: "TRANSLATION_NOT_FOUND",
-          message: `Translation '${translation.id}' could not be loaded`,
-        },
-      },
-      500
-    );
-  }
-
   const parsedRefs = parseMultipleReferences(refs);
   const results: MultipleVersesResponse["verses"] = [];
 
@@ -86,13 +69,12 @@ verses.get("/", async (c) => {
       );
     }
 
-    const book = getBook(bible, parsed.book.number);
-    if (!book) continue;
-
-    const chapter = getChapter(book, parsed.reference.chapter);
-    if (!chapter) continue;
-
-    const verse = getVerse(chapter, parsed.reference.verseStart);
+    const verse = getVerseFromDb(
+      translation.id,
+      parsed.book.number,
+      parsed.reference.chapter,
+      parsed.reference.verseStart
+    );
     if (!verse) continue;
 
     const bookName =
@@ -116,7 +98,6 @@ verses.get("/", async (c) => {
   return c.json(response);
 });
 
-// GET /verses/:ref/compare - Compare across translations or languages
 verses.get("/:ref/compare", async (c) => {
   const ref = c.req.param("ref");
   const translationsParam = c.req.query("translations");
@@ -144,16 +125,12 @@ verses.get("/:ref/compare", async (c) => {
       const translation = await getTranslationMeta(transId);
       if (!translation) continue;
 
-      const bible = await loadTranslation(transId);
-      if (!bible) continue;
-
-      const book = getBook(bible, parsed.book.number);
-      if (!book) continue;
-
-      const chapter = getChapter(book, parsed.reference.chapter);
-      if (!chapter) continue;
-
-      const verse = getVerse(chapter, parsed.reference.verseStart);
+      const verse = getVerseFromDb(
+        transId,
+        parsed.book.number,
+        parsed.reference.chapter,
+        parsed.reference.verseStart
+      );
       if (!verse) continue;
 
       const lang = translation.language;
@@ -177,16 +154,12 @@ verses.get("/:ref/compare", async (c) => {
       const translation = await getDefaultTranslation(lang);
       if (!translation) continue;
 
-      const bible = await loadTranslation(translation.id);
-      if (!bible) continue;
-
-      const book = getBook(bible, parsed.book.number);
-      if (!book) continue;
-
-      const chapter = getChapter(book, parsed.reference.chapter);
-      if (!chapter) continue;
-
-      const verse = getVerse(chapter, parsed.reference.verseStart);
+      const verse = getVerseFromDb(
+        translation.id,
+        parsed.book.number,
+        parsed.reference.chapter,
+        parsed.reference.verseStart
+      );
       if (!verse) continue;
 
       const langInfo = LANGUAGES[lang] || { name: lang, nativeName: lang };
@@ -260,45 +233,6 @@ verses.get("/:ref", async (c) => {
     );
   }
 
-  const bible = await loadTranslation(translation.id);
-  if (!bible) {
-    return c.json(
-      {
-        error: {
-          code: "TRANSLATION_NOT_FOUND",
-          message: `Translation '${translation.id}' could not be loaded`,
-        },
-      },
-      500
-    );
-  }
-
-  const book = getBook(bible, parsed.book.number);
-  if (!book) {
-    return c.json(
-      {
-        error: {
-          code: "BOOK_NOT_FOUND",
-          message: `Book not found in translation`,
-        },
-      },
-      404
-    );
-  }
-
-  const chapter = getChapter(book, parsed.reference.chapter);
-  if (!chapter) {
-    return c.json(
-      {
-        error: {
-          code: "CHAPTER_NOT_FOUND",
-          message: `Chapter ${parsed.reference.chapter} not found`,
-        },
-      },
-      404
-    );
-  }
-
   const bookName =
     language === "fr" ? parsed.book.names.fr : parsed.book.names.en;
 
@@ -306,8 +240,10 @@ verses.get("/:ref", async (c) => {
     parsed.reference.verseEnd &&
     parsed.reference.verseEnd !== parsed.reference.verseStart
   ) {
-    const versesInRange = getVerseRange(
-      chapter,
+    const versesInRange = getVerseRangeFromDb(
+      translation.id,
+      parsed.book.number,
+      parsed.reference.chapter,
       parsed.reference.verseStart,
       parsed.reference.verseEnd
     );
@@ -339,7 +275,13 @@ verses.get("/:ref", async (c) => {
     return c.json(response);
   }
 
-  const verse = getVerse(chapter, parsed.reference.verseStart);
+  const verse = getVerseFromDb(
+    translation.id,
+    parsed.book.number,
+    parsed.reference.chapter,
+    parsed.reference.verseStart
+  );
+
   if (!verse) {
     return c.json(
       {

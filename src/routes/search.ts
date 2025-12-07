@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import {
-  loadTranslation,
   getDefaultTranslation,
   getTranslationMeta,
 } from "../services/bible-loader";
+import { searchVerses } from "../services/database";
 import { getBookByNumber, DEFAULT_LANGUAGE } from "../data/books";
 import type { SearchResponse, SearchResult } from "../types/bible";
 
@@ -57,64 +57,27 @@ search.get("/", async (c) => {
     );
   }
 
-  const bible = await loadTranslation(translation.id);
-  if (!bible) {
-    return c.json(
-      {
-        error: {
-          code: "TRANSLATION_NOT_FOUND",
-          message: `Translation '${translation.id}' could not be loaded`,
-        },
-      },
-      500
-    );
-  }
+  const { results: dbResults, total } = searchVerses(
+    translation.id,
+    query,
+    limit,
+    offset
+  );
 
-  const results: SearchResult[] = [];
-  const lowerQuery = query.toLowerCase();
+  const results: SearchResult[] = dbResults.map((row) => {
+    const bookData = getBookByNumber(row.book);
+    const bookName = bookData
+      ? language === "fr"
+        ? bookData.names.fr
+        : bookData.names.en
+      : `Book ${row.book}`;
 
-  // Search through Old Testament
-  for (const book of bible.testaments.old) {
-    const bookData = getBookByNumber(book.number);
-    if (!bookData) continue;
-
-    const bookName = language === "fr" ? bookData.names.fr : bookData.names.en;
-
-    for (const chapter of book.chapters) {
-      for (const verse of chapter.verses) {
-        if (verse.text.toLowerCase().includes(lowerQuery)) {
-          results.push({
-            reference: `${bookName} ${chapter.number}:${verse.number}`,
-            text: verse.text,
-            highlight: highlightMatches(verse.text, query),
-          });
-        }
-      }
-    }
-  }
-
-  // Search through New Testament
-  for (const book of bible.testaments.new) {
-    const bookData = getBookByNumber(book.number);
-    if (!bookData) continue;
-
-    const bookName = language === "fr" ? bookData.names.fr : bookData.names.en;
-
-    for (const chapter of book.chapters) {
-      for (const verse of chapter.verses) {
-        if (verse.text.toLowerCase().includes(lowerQuery)) {
-          results.push({
-            reference: `${bookName} ${chapter.number}:${verse.number}`,
-            text: verse.text,
-            highlight: highlightMatches(verse.text, query),
-          });
-        }
-      }
-    }
-  }
-
-  const total = results.length;
-  const paginatedResults = results.slice(offset, offset + limit);
+    return {
+      reference: `${bookName} ${row.chapter}:${row.verse}`,
+      text: row.text,
+      highlight: highlightMatches(row.text, query),
+    };
+  });
 
   const response: SearchResponse = {
     query,
@@ -123,7 +86,7 @@ search.get("/", async (c) => {
     total,
     limit,
     offset,
-    results: paginatedResults,
+    results,
   };
 
   return c.json(response);

@@ -35,3 +35,8 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 .cursor
 .claude
+
+# SQLite database
+bible.db
+bible.db-shm
+bible.db-wal
