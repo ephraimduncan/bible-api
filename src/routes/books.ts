@@ -3,8 +3,8 @@ import { BOOKS, getBookByIdOrAlias, DEFAULT_LANGUAGE } from "../data/books";
 import {
   getDefaultTranslation,
   getTranslationMeta,
-  loadTranslation,
-  getBook,
+  getBookChaptersFromDb,
+  getChapterVersesFromDb,
 } from "../services/bible-loader";
 import type {
   BooksResponse,
@@ -113,31 +113,8 @@ books.get("/:id/chapters", async (c) => {
     );
   }
 
-  const bible = await loadTranslation(translation.id);
-  if (!bible) {
-    return c.json(
-      {
-        error: {
-          code: "TRANSLATION_NOT_FOUND",
-          message: `Translation '${translation.id}' could not be loaded`,
-        },
-      },
-      500
-    );
-  }
-
-  const book = getBook(bible, bookData.number);
   const bookName = language === "fr" ? bookData.names.fr : bookData.names.en;
-
-  const chapters = book
-    ? book.chapters.map((ch) => ({
-        number: ch.number,
-        verses: ch.verses.length,
-      }))
-    : Array.from({ length: bookData.chapters }, (_, i) => ({
-        number: i + 1,
-        verses: 0,
-      }));
+  const chapters = getBookChaptersFromDb(translation.id, bookData.number);
 
   const response: ChaptersResponse = {
     book: { id: bookData.id, name: bookName },
@@ -196,34 +173,13 @@ books.get("/:id/chapters/:chapter", async (c) => {
     );
   }
 
-  const bible = await loadTranslation(translation.id);
-  if (!bible) {
-    return c.json(
-      {
-        error: {
-          code: "TRANSLATION_NOT_FOUND",
-          message: `Translation '${translation.id}' could not be loaded`,
-        },
-      },
-      500
-    );
-  }
+  const verses = getChapterVersesFromDb(
+    translation.id,
+    bookData.number,
+    chapterNum
+  );
 
-  const book = getBook(bible, bookData.number);
-  if (!book) {
-    return c.json(
-      {
-        error: {
-          code: "BOOK_NOT_FOUND",
-          message: `Book data not found in translation`,
-        },
-      },
-      404
-    );
-  }
-
-  const chapter = book.chapters.find((ch) => ch.number === chapterNum);
-  if (!chapter) {
+  if (verses.length === 0) {
     return c.json(
       {
         error: {
@@ -242,7 +198,7 @@ books.get("/:id/chapters/:chapter", async (c) => {
     language,
     book: { id: bookData.id, name: bookName },
     chapter: chapterNum,
-    verses: chapter.verses.map((v) => ({
+    verses: verses.map((v) => ({
       number: v.number,
       text: v.text,
     })),

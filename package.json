@@ -5,6 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "bun run --hot index.ts",
+    "import": "bun run scripts/import-xml.ts",
     "test": "bun test"
   },
   "devDependencies": {
