@@ -1,0 +1,590 @@
+import type { Testament, BookInfo } from "../types/bible";
+
+export interface BookData {
+  id: string;
+  number: number;
+  testament: Testament;
+  chapters: number;
+  names: {
+    en: string;
+    fr: string;
+  };
+  aliases: string[];
+}
+
+export const BOOKS: BookData[] = [
+  {
+    id: "gen",
+    number: 1,
+    testament: "old",
+    chapters: 50,
+    names: { en: "Genesis", fr: "Genèse" },
+    aliases: ["genesis", "gn"],
+  },
+  {
+    id: "exo",
+    number: 2,
+    testament: "old",
+    chapters: 40,
+    names: { en: "Exodus", fr: "Exode" },
+    aliases: ["exodus", "ex"],
+  },
+  {
+    id: "lev",
+    number: 3,
+    testament: "old",
+    chapters: 27,
+    names: { en: "Leviticus", fr: "Lévitique" },
+    aliases: ["leviticus", "lv"],
+  },
+  {
+    id: "num",
+    number: 4,
+    testament: "old",
+    chapters: 36,
+    names: { en: "Numbers", fr: "Nombres" },
+    aliases: ["numbers", "nm", "nb"],
+  },
+  {
+    id: "deu",
+    number: 5,
+    testament: "old",
+    chapters: 34,
+    names: { en: "Deuteronomy", fr: "Deutéronome" },
+    aliases: ["deuteronomy", "dt"],
+  },
+  {
+    id: "jos",
+    number: 6,
+    testament: "old",
+    chapters: 24,
+    names: { en: "Joshua", fr: "Josué" },
+    aliases: ["joshua", "josh"],
+  },
+  {
+    id: "jdg",
+    number: 7,
+    testament: "old",
+    chapters: 21,
+    names: { en: "Judges", fr: "Juges" },
+    aliases: ["judges", "judg", "jg"],
+  },
+  {
+    id: "rut",
+    number: 8,
+    testament: "old",
+    chapters: 4,
+    names: { en: "Ruth", fr: "Ruth" },
+    aliases: ["ruth", "ru"],
+  },
+  {
+    id: "1sa",
+    number: 9,
+    testament: "old",
+    chapters: 31,
+    names: { en: "1 Samuel", fr: "1 Samuel" },
+    aliases: ["1samuel", "1sam", "1sm"],
+  },
+  {
+    id: "2sa",
+    number: 10,
+    testament: "old",
+    chapters: 24,
+    names: { en: "2 Samuel", fr: "2 Samuel" },
+    aliases: ["2samuel", "2sam", "2sm"],
+  },
+  {
+    id: "1ki",
+    number: 11,
+    testament: "old",
+    chapters: 22,
+    names: { en: "1 Kings", fr: "1 Rois" },
+    aliases: ["1kings", "1kgs", "1kg"],
+  },
+  {
+    id: "2ki",
+    number: 12,
+    testament: "old",
+    chapters: 25,
+    names: { en: "2 Kings", fr: "2 Rois" },
+    aliases: ["2kings", "2kgs", "2kg"],
+  },
+  {
+    id: "1ch",
+    number: 13,
+    testament: "old",
+    chapters: 29,
+    names: { en: "1 Chronicles", fr: "1 Chroniques" },
+    aliases: ["1chronicles", "1chr", "1chron"],
+  },
+  {
+    id: "2ch",
+    number: 14,
+    testament: "old",
+    chapters: 36,
+    names: { en: "2 Chronicles", fr: "2 Chroniques" },
+    aliases: ["2chronicles", "2chr", "2chron"],
+  },
+  {
+    id: "ezr",
+    number: 15,
+    testament: "old",
+    chapters: 10,
+    names: { en: "Ezra", fr: "Esdras" },
+    aliases: ["ezra"],
+  },
+  {
+    id: "neh",
+    number: 16,
+    testament: "old",
+    chapters: 13,
+    names: { en: "Nehemiah", fr: "Néhémie" },
+    aliases: ["nehemiah", "ne"],
+  },
+  {
+    id: "est",
+    number: 17,
+    testament: "old",
+    chapters: 10,
+    names: { en: "Esther", fr: "Esther" },
+    aliases: ["esther"],
+  },
+  {
+    id: "job",
+    number: 18,
+    testament: "old",
+    chapters: 42,
+    names: { en: "Job", fr: "Job" },
+    aliases: ["job", "jb"],
+  },
+  {
+    id: "psa",
+    number: 19,
+    testament: "old",
+    chapters: 150,
+    names: { en: "Psalms", fr: "Psaumes" },
+    aliases: ["psalms", "psalm", "ps"],
+  },
+  {
+    id: "pro",
+    number: 20,
+    testament: "old",
+    chapters: 31,
+    names: { en: "Proverbs", fr: "Proverbes" },
+    aliases: ["proverbs", "prov", "pr"],
+  },
+  {
+    id: "ecc",
+    number: 21,
+    testament: "old",
+    chapters: 12,
+    names: { en: "Ecclesiastes", fr: "Ecclésiaste" },
+    aliases: ["ecclesiastes", "eccl", "ec", "qoh"],
+  },
+  {
+    id: "sng",
+    number: 22,
+    testament: "old",
+    chapters: 8,
+    names: { en: "Song of Solomon", fr: "Cantique des Cantiques" },
+    aliases: ["songofsolomon", "song", "sos", "canticles"],
+  },
+  {
+    id: "isa",
+    number: 23,
+    testament: "old",
+    chapters: 66,
+    names: { en: "Isaiah", fr: "Ésaïe" },
+    aliases: ["isaiah", "is"],
+  },
+  {
+    id: "jer",
+    number: 24,
+    testament: "old",
+    chapters: 52,
+    names: { en: "Jeremiah", fr: "Jérémie" },
+    aliases: ["jeremiah", "je"],
+  },
+  {
+    id: "lam",
+    number: 25,
+    testament: "old",
+    chapters: 5,
+    names: { en: "Lamentations", fr: "Lamentations" },
+    aliases: ["lamentations", "la"],
+  },
+  {
+    id: "ezk",
+    number: 26,
+    testament: "old",
+    chapters: 48,
+    names: { en: "Ezekiel", fr: "Ézéchiel" },
+    aliases: ["ezekiel", "eze", "ez"],
+  },
+  {
+    id: "dan",
+    number: 27,
+    testament: "old",
+    chapters: 12,
+    names: { en: "Daniel", fr: "Daniel" },
+    aliases: ["daniel", "da", "dn"],
+  },
+  {
+    id: "hos",
+    number: 28,
+    testament: "old",
+    chapters: 14,
+    names: { en: "Hosea", fr: "Osée" },
+    aliases: ["hosea", "ho"],
+  },
+  {
+    id: "jol",
+    number: 29,
+    testament: "old",
+    chapters: 3,
+    names: { en: "Joel", fr: "Joël" },
+    aliases: ["joel", "jl"],
+  },
+  {
+    id: "amo",
+    number: 30,
+    testament: "old",
+    chapters: 9,
+    names: { en: "Amos", fr: "Amos" },
+    aliases: ["amos", "am"],
+  },
+  {
+    id: "oba",
+    number: 31,
+    testament: "old",
+    chapters: 1,
+    names: { en: "Obadiah", fr: "Abdias" },
+    aliases: ["obadiah", "ob"],
+  },
+  {
+    id: "jon",
+    number: 32,
+    testament: "old",
+    chapters: 4,
+    names: { en: "Jonah", fr: "Jonas" },
+    aliases: ["jonah", "jnh"],
+  },
+  {
+    id: "mic",
+    number: 33,
+    testament: "old",
+    chapters: 7,
+    names: { en: "Micah", fr: "Michée" },
+    aliases: ["micah", "mi"],
+  },
+  {
+    id: "nam",
+    number: 34,
+    testament: "old",
+    chapters: 3,
+    names: { en: "Nahum", fr: "Nahum" },
+    aliases: ["nahum", "na"],
+  },
+  {
+    id: "hab",
+    number: 35,
+    testament: "old",
+    chapters: 3,
+    names: { en: "Habakkuk", fr: "Habacuc" },
+    aliases: ["habakkuk", "hb"],
+  },
+  {
+    id: "zep",
+    number: 36,
+    testament: "old",
+    chapters: 3,
+    names: { en: "Zephaniah", fr: "Sophonie" },
+    aliases: ["zephaniah", "zp"],
+  },
+  {
+    id: "hag",
+    number: 37,
+    testament: "old",
+    chapters: 2,
+    names: { en: "Haggai", fr: "Aggée" },
+    aliases: ["haggai", "hg"],
+  },
+  {
+    id: "zec",
+    number: 38,
+    testament: "old",
+    chapters: 14,
+    names: { en: "Zechariah", fr: "Zacharie" },
+    aliases: ["zechariah", "zc"],
+  },
+  {
+    id: "mal",
+    number: 39,
+    testament: "old",
+    chapters: 4,
+    names: { en: "Malachi", fr: "Malachie" },
+    aliases: ["malachi", "ml"],
+  },
+
+  // New Testament (40-66)
+  {
+    id: "mat",
+    number: 40,
+    testament: "new",
+    chapters: 28,
+    names: { en: "Matthew", fr: "Matthieu" },
+    aliases: ["matthew", "matt", "mt"],
+  },
+  {
+    id: "mrk",
+    number: 41,
+    testament: "new",
+    chapters: 16,
+    names: { en: "Mark", fr: "Marc" },
+    aliases: ["mark", "mk"],
+  },
+  {
+    id: "luk",
+    number: 42,
+    testament: "new",
+    chapters: 24,
+    names: { en: "Luke", fr: "Luc" },
+    aliases: ["luke", "lk"],
+  },
+  {
+    id: "jhn",
+    number: 43,
+    testament: "new",
+    chapters: 21,
+    names: { en: "John", fr: "Jean" },
+    aliases: ["john", "jn"],
+  },
+  {
+    id: "act",
+    number: 44,
+    testament: "new",
+    chapters: 28,
+    names: { en: "Acts", fr: "Actes" },
+    aliases: ["acts", "ac"],
+  },
+  {
+    id: "rom",
+    number: 45,
+    testament: "new",
+    chapters: 16,
+    names: { en: "Romans", fr: "Romains" },
+    aliases: ["romans", "ro", "rm"],
+  },
+  {
+    id: "1co",
+    number: 46,
+    testament: "new",
+    chapters: 16,
+    names: { en: "1 Corinthians", fr: "1 Corinthiens" },
+    aliases: ["1corinthians", "1cor"],
+  },
+  {
+    id: "2co",
+    number: 47,
+    testament: "new",
+    chapters: 13,
+    names: { en: "2 Corinthians", fr: "2 Corinthiens" },
+    aliases: ["2corinthians", "2cor"],
+  },
+  {
+    id: "gal",
+    number: 48,
+    testament: "new",
+    chapters: 6,
+    names: { en: "Galatians", fr: "Galates" },
+    aliases: ["galatians", "ga"],
+  },
+  {
+    id: "eph",
+    number: 49,
+    testament: "new",
+    chapters: 6,
+    names: { en: "Ephesians", fr: "Éphésiens" },
+    aliases: ["ephesians"],
+  },
+  {
+    id: "php",
+    number: 50,
+    testament: "new",
+    chapters: 4,
+    names: { en: "Philippians", fr: "Philippiens" },
+    aliases: ["philippians", "phil"],
+  },
+  {
+    id: "col",
+    number: 51,
+    testament: "new",
+    chapters: 4,
+    names: { en: "Colossians", fr: "Colossiens" },
+    aliases: ["colossians"],
+  },
+  {
+    id: "1th",
+    number: 52,
+    testament: "new",
+    chapters: 5,
+    names: { en: "1 Thessalonians", fr: "1 Thessaloniciens" },
+    aliases: ["1thessalonians", "1thess", "1thes"],
+  },
+  {
+    id: "2th",
+    number: 53,
+    testament: "new",
+    chapters: 3,
+    names: { en: "2 Thessalonians", fr: "2 Thessaloniciens" },
+    aliases: ["2thessalonians", "2thess", "2thes"],
+  },
+  {
+    id: "1ti",
+    number: 54,
+    testament: "new",
+    chapters: 6,
+    names: { en: "1 Timothy", fr: "1 Timothée" },
+    aliases: ["1timothy", "1tim"],
+  },
+  {
+    id: "2ti",
+    number: 55,
+    testament: "new",
+    chapters: 4,
+    names: { en: "2 Timothy", fr: "2 Timothée" },
+    aliases: ["2timothy", "2tim"],
+  },
+  {
+    id: "tit",
+    number: 56,
+    testament: "new",
+    chapters: 3,
+    names: { en: "Titus", fr: "Tite" },
+    aliases: ["titus", "ti"],
+  },
+  {
+    id: "phm",
+    number: 57,
+    testament: "new",
+    chapters: 1,
+    names: { en: "Philemon", fr: "Philémon" },
+    aliases: ["philemon", "phlm"],
+  },
+  {
+    id: "heb",
+    number: 58,
+    testament: "new",
+    chapters: 13,
+    names: { en: "Hebrews", fr: "Hébreux" },
+    aliases: ["hebrews"],
+  },
+  {
+    id: "jas",
+    number: 59,
+    testament: "new",
+    chapters: 5,
+    names: { en: "James", fr: "Jacques" },
+    aliases: ["james", "jm"],
+  },
+  {
+    id: "1pe",
+    number: 60,
+    testament: "new",
+    chapters: 5,
+    names: { en: "1 Peter", fr: "1 Pierre" },
+    aliases: ["1peter", "1pet", "1pt"],
+  },
+  {
+    id: "2pe",
+    number: 61,
+    testament: "new",
+    chapters: 3,
+    names: { en: "2 Peter", fr: "2 Pierre" },
+    aliases: ["2peter", "2pet", "2pt"],
+  },
+  {
+    id: "1jn",
+    number: 62,
+    testament: "new",
+    chapters: 5,
+    names: { en: "1 John", fr: "1 Jean" },
+    aliases: ["1john"],
+  },
+  {
+    id: "2jn",
+    number: 63,
+    testament: "new",
+    chapters: 1,
+    names: { en: "2 John", fr: "2 Jean" },
+    aliases: ["2john"],
+  },
+  {
+    id: "3jn",
+    number: 64,
+    testament: "new",
+    chapters: 1,
+    names: { en: "3 John", fr: "3 Jean" },
+    aliases: ["3john"],
+  },
+  {
+    id: "jud",
+    number: 65,
+    testament: "new",
+    chapters: 1,
+    names: { en: "Jude", fr: "Jude" },
+    aliases: ["jude"],
+  },
+  {
+    id: "rev",
+    number: 66,
+    testament: "new",
+    chapters: 22,
+    names: { en: "Revelation", fr: "Apocalypse" },
+    aliases: ["revelation", "rv", "apocalypse"],
+  },
+];
+
+const bookByNumber = new Map<number, BookData>();
+const bookById = new Map<string, BookData>();
+const bookByAlias = new Map<string, BookData>();
+
+for (const book of BOOKS) {
+  bookByNumber.set(book.number, book);
+  bookById.set(book.id, book);
+  bookByAlias.set(book.id, book);
+  for (const alias of book.aliases) {
+    bookByAlias.set(alias.toLowerCase(), book);
+  }
+}
+
+export function getBookByNumber(number: number): BookData | undefined {
+  return bookByNumber.get(number);
+}
+
+export function getBookById(id: string): BookData | undefined {
+  return bookById.get(id.toLowerCase());
+}
+
+export function getBookByIdOrAlias(idOrAlias: string): BookData | undefined {
+  return bookByAlias.get(idOrAlias.toLowerCase());
+}
+
+export function getBookInfo(book: BookData, language: string): BookInfo {
+  const name = language === "fr" ? book.names.fr : book.names.en;
+  return {
+    id: book.id,
+    number: book.number,
+    name,
+    testament: book.testament,
+    chapters: book.chapters,
+  };
+}
+
+export const LANGUAGES: Record<string, { name: string; nativeName: string }> = {
+  en: { name: "English", nativeName: "English" },
+  fr: { name: "French", nativeName: "Français" },
+};
+
+export const DEFAULT_LANGUAGE = "en";
+export const DEFAULT_TRANSLATION = "en-kjv";

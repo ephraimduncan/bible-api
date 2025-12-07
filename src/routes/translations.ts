@@ -1,0 +1,35 @@
+import { Hono } from 'hono';
+import { discoverTranslations, getTranslationsByLanguage } from '../services/bible-loader';
+import { DEFAULT_TRANSLATION } from '../data/books';
+import type { TranslationsResponse } from '../types/bible';
+
+const translations = new Hono();
+
+translations.get('/', async (c) => {
+  const language = c.req.query('language');
+
+  let translationList = await discoverTranslations();
+
+  if (language) {
+    translationList = await getTranslationsByLanguage(language);
+  }
+
+  const response: TranslationsResponse = {
+    default: DEFAULT_TRANSLATION,
+    ...(language && { language }),
+    translations: translationList.map((t) => {
+      const isDefault = t.id === DEFAULT_TRANSLATION;
+      return {
+        id: t.id,
+        name: t.name,
+        language: t.language,
+        status: t.status,
+        ...(isDefault && { default: true }),
+      };
+    }),
+  };
+
+  return c.json(response);
+});
+
+export default translations;
