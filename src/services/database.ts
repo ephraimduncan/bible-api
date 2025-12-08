@@ -10,6 +10,7 @@ export function getDatabase(): Database {
     db = new Database(DB_PATH);
     db.run("PRAGMA journal_mode = WAL");
     db.run("PRAGMA synchronous = NORMAL");
+    db.run("PRAGMA cache_size = -64000"); // 64MB cache
   }
   return db;
 }
@@ -17,7 +18,6 @@ export function getDatabase(): Database {
 export function initializeDatabase(): void {
   const database = getDatabase();
 
-  // Create translations table
   database.run(`
     CREATE TABLE IF NOT EXISTS translations (
       id TEXT PRIMARY KEY,
@@ -31,7 +31,6 @@ export function initializeDatabase(): void {
     "CREATE INDEX IF NOT EXISTS idx_translations_language ON translations(language)"
   );
 
-  // Create verses table
   database.run(`
     CREATE TABLE IF NOT EXISTS verses (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +50,6 @@ export function initializeDatabase(): void {
     "CREATE INDEX IF NOT EXISTS idx_verses_book_chapter ON verses(book, chapter)"
   );
 
-  // Check if FTS table exists
   const ftsExists = database
     .query(
       "SELECT name FROM sqlite_master WHERE type='table' AND name='verses_fts'"
@@ -59,7 +57,6 @@ export function initializeDatabase(): void {
     .get();
 
   if (!ftsExists) {
-    // Create FTS table
     database.run(`
       CREATE VIRTUAL TABLE verses_fts USING fts5(
         text,
@@ -68,7 +65,6 @@ export function initializeDatabase(): void {
       )
     `);
 
-    // Create trigger for FTS sync
     database.run(`
       CREATE TRIGGER IF NOT EXISTS verses_ai AFTER INSERT ON verses BEGIN
         INSERT INTO verses_fts(rowid, text) VALUES (new.id, new.text);
@@ -77,7 +73,6 @@ export function initializeDatabase(): void {
   }
 }
 
-// Prepared statements (lazy initialized)
 let stmts: {
   getTranslations?: ReturnType<Database["query"]>;
   getTranslationsByLanguage?: ReturnType<Database["query"]>;
@@ -133,8 +128,6 @@ function getStatements() {
       GROUP BY chapter ORDER BY chapter
     `);
   }
-  // searchVerses and searchCount are not prepared statements
-  // because LIKE patterns are dynamic
 
   return stmts;
 }
@@ -148,7 +141,6 @@ import type {
 
 export type { TranslationRow, VerseRow, ChapterCountRow, SearchRow };
 
-// Query functions
 export function getAllTranslations(): TranslationRow[] {
   return getStatements().getTranslations!.all() as TranslationRow[];
 }
@@ -223,7 +215,6 @@ export function searchVerses(
   limit: number,
   offset: number
 ): { results: SearchRow[]; total: number } {
-  // Handle empty or whitespace-only queries
   const trimmed = query.trim();
   if (!trimmed) {
     return { results: [], total: 0 };
@@ -231,7 +222,6 @@ export function searchVerses(
 
   const database = getDatabase();
 
-  // Use LIKE for substring matching (supports partial words and phrases)
   const pattern = `%${trimmed}%`;
 
   const results = database
