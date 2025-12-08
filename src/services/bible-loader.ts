@@ -1,4 +1,4 @@
-import type { TranslationMeta, Verse } from "../types/bible";
+import type { TranslationMeta, Verse, TranslationRow } from "../schemas";
 import {
   getAllTranslations,
   getTranslationsByLanguage as dbGetTranslationsByLanguage,
@@ -8,7 +8,6 @@ import {
   getChapterVerses as dbGetChapterVerses,
   getChapterCounts,
   getAvailableLanguages as dbGetAvailableLanguages,
-  type TranslationRow,
 } from "./database";
 
 function rowToMeta(row: TranslationRow): TranslationMeta {

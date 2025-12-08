@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { getAvailableLanguages } from "../services/bible-loader";
 import { LANGUAGES, DEFAULT_LANGUAGE } from "../data/books";
-import type { LanguagesResponse } from "../types/bible";
+import type { LanguagesResponse } from "../schemas";
 
 const languages = new Hono();
 

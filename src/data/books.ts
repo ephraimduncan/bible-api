@@ -1,16 +1,6 @@
-import type { Testament, BookInfo } from "../types/bible";
+import type { Testament, BookInfo, BookData } from "../schemas";
 
-export interface BookData {
-  id: string;
-  number: number;
-  testament: Testament;
-  chapters: number;
-  names: {
-    en: string;
-    fr: string;
-  };
-  aliases: string[];
-}
+export type { BookData };
 
 export const BOOKS: BookData[] = [
   {

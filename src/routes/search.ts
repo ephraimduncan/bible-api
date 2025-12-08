@@ -5,7 +5,11 @@ import {
 } from "../services/bible-loader";
 import { searchVerses } from "../services/database";
 import { getBookByNumber, DEFAULT_LANGUAGE } from "../data/books";
-import type { SearchResponse, SearchResult } from "../types/bible";
+import {
+  SearchQuerySchema,
+  type SearchResponse,
+  type SearchResult,
+} from "../schemas";
 
 const search = new Hono();
 
@@ -20,26 +24,34 @@ function highlightMatches(text: string, query: string): string {
 }
 
 search.get("/", async (c) => {
-  const query = c.req.query("q");
-  const language = c.req.query("language") || DEFAULT_LANGUAGE;
-  const translationId = c.req.query("translation");
-  const limitParam = c.req.query("limit");
-  const offsetParam = c.req.query("offset");
+  const parsedQuery = SearchQuerySchema.safeParse(c.req.query());
 
-  if (!query) {
+  if (!parsedQuery.success) {
+    const missingQuery = parsedQuery.error.issues.some(
+      (issue) => issue.path[0] === "q"
+    );
+
     return c.json(
       {
         error: {
-          code: "MISSING_QUERY",
-          message: "Missing q query parameter",
+          code: missingQuery ? "MISSING_QUERY" : "INVALID_QUERY",
+          message: missingQuery
+            ? "Missing q query parameter"
+            : parsedQuery.error.message,
         },
       },
       400
     );
   }
 
-  const limit = limitParam ? Math.min(parseInt(limitParam, 10), 100) : 10;
-  const offset = offsetParam ? parseInt(offsetParam, 10) : 0;
+  const {
+    q: query,
+    language: langParam,
+    translation: translationId,
+    limit,
+    offset,
+  } = parsedQuery.data;
+  const language = langParam ?? DEFAULT_LANGUAGE;
 
   const translation = translationId
     ? await getTranslationMeta(translationId)
