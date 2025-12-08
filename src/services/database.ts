@@ -139,31 +139,14 @@ function getStatements() {
   return stmts;
 }
 
-// Types for query results
-export interface TranslationRow {
-  id: string;
-  name: string;
-  language: string;
-  status: string | null;
-  filename: string | null;
-}
+import type {
+  TranslationRow,
+  VerseRow,
+  ChapterCountRow,
+  SearchRow,
+} from "../schemas";
 
-export interface VerseRow {
-  verse: number;
-  text: string;
-}
-
-export interface ChapterCountRow {
-  chapter: number;
-  verse_count: number;
-}
-
-export interface SearchRow {
-  book: number;
-  chapter: number;
-  verse: number;
-  text: string;
-}
+export type { TranslationRow, VerseRow, ChapterCountRow, SearchRow };
 
 // Query functions
 export function getAllTranslations(): TranslationRow[] {

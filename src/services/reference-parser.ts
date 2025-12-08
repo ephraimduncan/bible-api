@@ -1,5 +1,5 @@
-import type { ParsedReference } from '../types/bible';
-import { getBookByIdOrAlias, type BookData } from '../data/books';
+import type { ParsedReference, BookData } from "../schemas";
+import { getBookByIdOrAlias } from "../data/books";
 
 export interface ParseResult {
   success: true;
@@ -84,9 +84,9 @@ export function parseReference(ref: string): ParsedRefResult {
 export function formatReference(
   ref: ParsedReference,
   book: BookData,
-  language: string = 'en'
+  language: string = "en"
 ): string {
-  const bookName = language === 'fr' ? book.names.fr : book.names.en;
+  const bookName = language === "fr" ? book.names.fr : book.names.en;
 
   if (ref.verseEnd && ref.verseEnd !== ref.verseStart) {
     return `${bookName} ${ref.chapter}:${ref.verseStart}-${ref.verseEnd}`;
@@ -100,6 +100,6 @@ export function formatReference(
  * e.g., "jhn.3.16,rom.8.28,psa.23.1"
  */
 export function parseMultipleReferences(refs: string): ParsedRefResult[] {
-  const parts = refs.split(',').map((r) => r.trim());
+  const parts = refs.split(",").map((r) => r.trim());
   return parts.map(parseReference);
 }

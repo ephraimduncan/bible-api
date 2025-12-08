@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { Context } from "hono";
 import { BOOKS, getBookByIdOrAlias, DEFAULT_LANGUAGE } from "../data/books";
 import {
   getDefaultTranslation,
@@ -6,18 +7,51 @@ import {
   getBookChaptersFromDb,
   getChapterVersesFromDb,
 } from "../services/bible-loader";
-import type {
-  BooksResponse,
-  BookResponse,
-  ChaptersResponse,
-  ChapterResponse,
-} from "../types/bible";
+import {
+  TranslationQuerySchema,
+  type BooksResponse,
+  type BookResponse,
+  type ChaptersResponse,
+  type ChapterResponse,
+} from "../schemas";
 
 const books = new Hono();
 
+type ParsedTranslationQuery =
+  | { data: { language: string; translationId?: string } }
+  | { error: Response };
+
+function parseTranslationQuery(c: Context): ParsedTranslationQuery {
+  const parsed = TranslationQuerySchema.safeParse(c.req.query());
+
+  if (!parsed.success) {
+    return {
+      error: c.json(
+        {
+          error: {
+            code: "INVALID_QUERY",
+            message: parsed.error.message,
+          },
+        },
+        400
+      ),
+    };
+  }
+
+  return {
+    data: {
+      language: parsed.data.language ?? DEFAULT_LANGUAGE,
+      translationId: parsed.data.translation,
+    },
+  };
+}
+
 books.get("/", async (c) => {
-  const language = c.req.query("language") || DEFAULT_LANGUAGE;
-  const translationId = c.req.query("translation");
+  const parsedQuery = parseTranslationQuery(c);
+  if ("error" in parsedQuery) return parsedQuery.error;
+
+  const language = parsedQuery.data.language;
+  const translationId = parsedQuery.data.translationId;
 
   const translation = translationId
     ? await getTranslationMeta(translationId)
@@ -51,7 +85,10 @@ books.get("/", async (c) => {
 
 books.get("/:id", async (c) => {
   const id = c.req.param("id");
-  const language = c.req.query("language") || DEFAULT_LANGUAGE;
+  const parsedQuery = parseTranslationQuery(c);
+  if ("error" in parsedQuery) return parsedQuery.error;
+
+  const language = parsedQuery.data.language;
 
   const book = getBookByIdOrAlias(id);
 
@@ -80,8 +117,11 @@ books.get("/:id", async (c) => {
 
 books.get("/:id/chapters", async (c) => {
   const id = c.req.param("id");
-  const language = c.req.query("language") || DEFAULT_LANGUAGE;
-  const translationId = c.req.query("translation");
+  const parsedQuery = parseTranslationQuery(c);
+  if ("error" in parsedQuery) return parsedQuery.error;
+
+  const language = parsedQuery.data.language;
+  const translationId = parsedQuery.data.translationId;
 
   const bookData = getBookByIdOrAlias(id);
 
@@ -128,8 +168,11 @@ books.get("/:id/chapters", async (c) => {
 books.get("/:id/chapters/:chapter", async (c) => {
   const id = c.req.param("id");
   const chapterNum = parseInt(c.req.param("chapter"), 10);
-  const language = c.req.query("language") || DEFAULT_LANGUAGE;
-  const translationId = c.req.query("translation");
+  const parsedQuery = parseTranslationQuery(c);
+  if ("error" in parsedQuery) return parsedQuery.error;
+
+  const language = parsedQuery.data.language;
+  const translationId = parsedQuery.data.translationId;
 
   const bookData = getBookByIdOrAlias(id);
 

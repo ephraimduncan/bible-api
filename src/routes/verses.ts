@@ -11,31 +11,44 @@ import {
   getVerseRangeFromDb,
 } from "../services/bible-loader";
 import { DEFAULT_LANGUAGE, LANGUAGES } from "../data/books";
-import type {
-  VerseResponse,
-  VersesRangeResponse,
-  MultipleVersesResponse,
-  CompareResponse,
-} from "../types/bible";
+import {
+  TranslationQuerySchema,
+  RefsQuerySchema,
+  CompareQuerySchema,
+  type VerseResponse,
+  type VersesRangeResponse,
+  type MultipleVersesResponse,
+  type CompareResponse,
+} from "../schemas";
 
 const verses = new Hono();
 
 verses.get("/", async (c) => {
-  const refs = c.req.query("refs");
-  const language = c.req.query("language") || DEFAULT_LANGUAGE;
-  const translationId = c.req.query("translation");
+  const parsedQuery = RefsQuerySchema.safeParse(c.req.query());
 
-  if (!refs) {
+  if (!parsedQuery.success) {
+    const message = parsedQuery.error.message;
+    const missingRefs = parsedQuery.error.issues.some(
+      (issue) => issue.path[0] === "refs"
+    );
+
     return c.json(
       {
         error: {
-          code: "MISSING_REFS",
-          message: "Missing refs query parameter",
+          code: missingRefs ? "MISSING_REFS" : "INVALID_QUERY",
+          message,
         },
       },
       400
     );
   }
+
+  const {
+    refs,
+    language: langParam,
+    translation: translationId,
+  } = parsedQuery.data;
+  const language = langParam ?? DEFAULT_LANGUAGE;
 
   const translation = translationId
     ? await getTranslationMeta(translationId)
@@ -100,8 +113,22 @@ verses.get("/", async (c) => {
 
 verses.get("/:ref/compare", async (c) => {
   const ref = c.req.param("ref");
-  const translationsParam = c.req.query("translations");
-  const languagesParam = c.req.query("languages");
+  const queryResult = CompareQuerySchema.safeParse(c.req.query());
+
+  if (!queryResult.success) {
+    return c.json(
+      {
+        error: {
+          code: "INVALID_QUERY",
+          message: queryResult.error.message,
+        },
+      },
+      400
+    );
+  }
+
+  const { translations: translationsParam, languages: languagesParam } =
+    queryResult.data;
 
   const parsed = parseReference(ref);
   if (!parsed.success) {
@@ -201,8 +228,22 @@ verses.get("/:ref/compare", async (c) => {
 
 verses.get("/:ref", async (c) => {
   const ref = c.req.param("ref");
-  const language = c.req.query("language") || DEFAULT_LANGUAGE;
-  const translationId = c.req.query("translation");
+  const queryResult = TranslationQuerySchema.safeParse(c.req.query());
+
+  if (!queryResult.success) {
+    return c.json(
+      {
+        error: {
+          code: "INVALID_QUERY",
+          message: queryResult.error.message,
+        },
+      },
+      400
+    );
+  }
+
+  const language = queryResult.data.language || DEFAULT_LANGUAGE;
+  const translationId = queryResult.data.translation;
 
   const parsed = parseReference(ref);
   if (!parsed.success) {
