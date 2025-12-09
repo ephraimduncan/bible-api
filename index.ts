@@ -29,14 +29,15 @@ app.doc("/openapi.json", {
     },
   },
   servers: [
-    {
-      url: "http://localhost:3000",
-      description: "Local development server",
-    },
-    {
-      url: "https://bible-api.eightlabs.xyz",
-      description: "Production server",
-    },
+    Bun.env.NODE_ENV === "production"
+      ? {
+          url: "https://bible-api.eightlabs.xyz",
+          description: "Production server",
+        }
+      : {
+          url: "http://localhost:3000",
+          description: "Local development server",
+        },
   ],
   tags: [
     {
