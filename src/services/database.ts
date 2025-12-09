@@ -10,7 +10,7 @@ export function getDatabase(): Database {
     db = new Database(DB_PATH);
     db.run("PRAGMA journal_mode = WAL");
     db.run("PRAGMA synchronous = NORMAL");
-    db.run("PRAGMA cache_size = -64000"); // 64MB cache
+    db.run("PRAGMA cache_size = -64000");
   }
   return db;
 }
