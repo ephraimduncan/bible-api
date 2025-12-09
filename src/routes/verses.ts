@@ -5,16 +5,15 @@ import {
   parseMultipleReferences,
 } from "../services/reference-parser";
 import {
-  getDefaultTranslation,
   getTranslationMeta,
   getVerseFromDb,
   getVerseRangeFromDb,
 } from "../services/bible-loader";
-import { DEFAULT_LANGUAGE, LANGUAGES } from "../data/books";
+import { DEFAULT_TRANSLATION } from "../data/books";
 import {
-  TranslationQuerySchema,
+  TranslationOnlyQuerySchema,
   RefsQuerySchema,
-  CompareQuerySchema,
+  CompareTranslationsQuerySchema,
   VerseRefParamSchema,
   VerseResponseSchema,
   VersesRangeResponseSchema,
@@ -97,23 +96,16 @@ const getMultipleVersesRoute = createRoute({
 });
 
 verses.openapi(getMultipleVersesRoute, async (c) => {
-  const {
-    refs,
-    language: langParam,
-    translation: translationId,
-  } = c.req.valid("query");
-  const language = langParam ?? DEFAULT_LANGUAGE;
+  const { refs, translation: translationId } = c.req.valid("query");
 
-  const translation = translationId
-    ? await getTranslationMeta(translationId)
-    : await getDefaultTranslation(language);
+  const translation = await getTranslationMeta(translationId ?? DEFAULT_TRANSLATION);
 
   if (!translation) {
     return c.json(
       {
         error: {
           code: "TRANSLATION_NOT_FOUND",
-          message: `Translation '${translationId ?? language}' not found`,
+          message: `Translation '${translationId ?? DEFAULT_TRANSLATION}' not found`,
         },
       },
       404
@@ -150,12 +142,9 @@ verses.openapi(getMultipleVersesRoute, async (c) => {
     );
     if (!verse) continue;
 
-    const bookName =
-      language === "fr" ? parsed.book.names.fr : parsed.book.names.en;
-
     results.push({
-      reference: formatReference(parsed.reference, parsed.book, language),
-      book: bookName,
+      reference: formatReference(parsed.reference, parsed.book, "en"),
+      book: parsed.book.names.en,
       chapter: parsed.reference.chapter,
       verse: verse.number,
       text: verse.text,
@@ -165,7 +154,6 @@ verses.openapi(getMultipleVersesRoute, async (c) => {
   return c.json(
     {
       translation: translation.id,
-      language,
       verses: results,
     },
     200
@@ -177,11 +165,10 @@ const compareVerseRoute = createRoute({
   path: "/{ref}/compare",
   tags: ["Verses"],
   summary: "Compare verse across translations",
-  description:
-    "Compare a verse across multiple translations or languages. Provide either translations or languages parameter.",
+  description: "Compare a verse across multiple translations.",
   request: {
     params: VerseRefParamSchema,
-    query: CompareQuerySchema,
+    query: CompareTranslationsQuerySchema,
   },
   responses: {
     200: {
@@ -198,16 +185,14 @@ const compareVerseRoute = createRoute({
           schema: ErrorResponseSchema,
         },
       },
-      description:
-        "Invalid reference or missing translations/languages parameter",
+      description: "Invalid reference or missing translations parameter",
     },
   },
 });
 
 verses.openapi(compareVerseRoute, async (c) => {
   const { ref } = c.req.valid("param");
-  const { translations: translationsParam, languages: languagesParam } =
-    c.req.valid("query");
+  const { translations: translationsParam } = c.req.valid("query");
 
   const parsed = parseReference(ref);
   if (!parsed.success) {
@@ -222,83 +207,45 @@ verses.openapi(compareVerseRoute, async (c) => {
     );
   }
 
+  if (!translationsParam) {
+    return c.json(
+      {
+        error: {
+          code: "MISSING_PARAMETER",
+          message: "translations query parameter is required",
+        },
+      },
+      400
+    );
+  }
+
   const comparisons: Array<{
-    language: string;
-    languageName: string;
     translation: string;
     translationName: string;
     bookName: string;
     text: string;
   }> = [];
 
-  if (translationsParam) {
-    const translationIds = translationsParam.split(",").map((t) => t.trim());
+  const translationIds = translationsParam.split(",").map((t) => t.trim());
 
-    for (const transId of translationIds) {
-      const translation = await getTranslationMeta(transId);
-      if (!translation) continue;
+  for (const transId of translationIds) {
+    const translation = await getTranslationMeta(transId);
+    if (!translation) continue;
 
-      const verse = getVerseFromDb(
-        transId,
-        parsed.book.number,
-        parsed.reference.chapter,
-        parsed.reference.verseStart
-      );
-      if (!verse) continue;
-
-      const lang = translation.language;
-      const langInfo = LANGUAGES[lang] || { name: lang, nativeName: lang };
-      const bookName =
-        lang === "fr" ? parsed.book.names.fr : parsed.book.names.en;
-
-      comparisons.push({
-        language: lang,
-        languageName: langInfo.name,
-        translation: translation.id,
-        translationName: translation.name,
-        bookName,
-        text: verse.text,
-      });
-    }
-  } else if (languagesParam) {
-    const langs = languagesParam.split(",").map((l) => l.trim());
-
-    for (const lang of langs) {
-      const translation = await getDefaultTranslation(lang);
-      if (!translation) continue;
-
-      const verse = getVerseFromDb(
-        translation.id,
-        parsed.book.number,
-        parsed.reference.chapter,
-        parsed.reference.verseStart
-      );
-      if (!verse) continue;
-
-      const langInfo = LANGUAGES[lang] || { name: lang, nativeName: lang };
-      const bookName =
-        lang === "fr" ? parsed.book.names.fr : parsed.book.names.en;
-
-      comparisons.push({
-        language: lang,
-        languageName: langInfo.name,
-        translation: translation.id,
-        translationName: translation.name,
-        bookName,
-        text: verse.text,
-      });
-    }
-  } else {
-    return c.json(
-      {
-        error: {
-          code: "MISSING_PARAMETER",
-          message:
-            "Either translations or languages query parameter is required",
-        },
-      },
-      400
+    const verse = getVerseFromDb(
+      transId,
+      parsed.book.number,
+      parsed.reference.chapter,
+      parsed.reference.verseStart
     );
+    if (!verse) continue;
+
+    comparisons.push({
+      translation: translation.id,
+      translationName: translation.name,
+      bookName: parsed.book.names.en,
+      text: verse.text,
+    });
   }
 
   return c.json(
@@ -322,7 +269,7 @@ const getVerseRoute = createRoute({
     "Get a single verse (e.g., jhn.3.16) or a range (e.g., rom.8.28-30) using dotted refs",
   request: {
     params: VerseRefParamSchema,
-    query: TranslationQuerySchema,
+    query: TranslationOnlyQuerySchema,
   },
   responses: {
     200: {
@@ -354,9 +301,7 @@ const getVerseRoute = createRoute({
 
 verses.openapi(getVerseRoute, async (c) => {
   const { ref } = c.req.valid("param");
-  const { language: langParam, translation: translationId } =
-    c.req.valid("query");
-  const language = langParam ?? DEFAULT_LANGUAGE;
+  const { translation: translationId } = c.req.valid("query");
 
   const parsed = parseReference(ref);
   if (!parsed.success) {
@@ -371,24 +316,19 @@ verses.openapi(getVerseRoute, async (c) => {
     );
   }
 
-  const translation = translationId
-    ? await getTranslationMeta(translationId)
-    : await getDefaultTranslation(language);
+  const translation = await getTranslationMeta(translationId ?? DEFAULT_TRANSLATION);
 
   if (!translation) {
     return c.json(
       {
         error: {
           code: "TRANSLATION_NOT_FOUND",
-          message: `Translation '${translationId ?? language}' not found`,
+          message: `Translation '${translationId ?? DEFAULT_TRANSLATION}' not found`,
         },
       },
       404
     );
   }
-
-  const bookName =
-    language === "fr" ? parsed.book.names.fr : parsed.book.names.en;
 
   if (
     parsed.reference.verseEnd &&
@@ -416,10 +356,9 @@ verses.openapi(getVerseRoute, async (c) => {
 
     return c.json(
       {
-        reference: formatReference(parsed.reference, parsed.book, language),
+        reference: formatReference(parsed.reference, parsed.book, "en"),
         translation: translation.id,
-        language,
-        book: { id: parsed.book.id, name: bookName },
+        book: { id: parsed.book.id, name: parsed.book.names.en },
         chapter: parsed.reference.chapter,
         verses: versesInRange.map((v) => ({
           number: v.number,
@@ -451,10 +390,9 @@ verses.openapi(getVerseRoute, async (c) => {
 
   return c.json(
     {
-      reference: formatReference(parsed.reference, parsed.book, language),
+      reference: formatReference(parsed.reference, parsed.book, "en"),
       translation: translation.id,
-      language,
-      book: { id: parsed.book.id, name: bookName },
+      book: { id: parsed.book.id, name: parsed.book.names.en },
       chapter: parsed.reference.chapter,
       verse: verse.number,
       text: verse.text,

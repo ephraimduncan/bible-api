@@ -22,14 +22,10 @@ export function initializeDatabase(): void {
     CREATE TABLE IF NOT EXISTS translations (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      language TEXT NOT NULL,
       status TEXT,
       filename TEXT
     )
   `);
-  database.run(
-    "CREATE INDEX IF NOT EXISTS idx_translations_language ON translations(language)"
-  );
 
   // Create verses table
   database.run(`
@@ -80,7 +76,6 @@ export function initializeDatabase(): void {
 // Prepared statements (lazy initialized)
 let stmts: {
   getTranslations?: ReturnType<Database["query"]>;
-  getTranslationsByLanguage?: ReturnType<Database["query"]>;
   getTranslation?: ReturnType<Database["query"]>;
   getVerse?: ReturnType<Database["query"]>;
   getVerseRange?: ReturnType<Database["query"]>;
@@ -93,17 +88,12 @@ function getStatements() {
 
   if (!stmts.getTranslations) {
     stmts.getTranslations = database.query(`
-      SELECT id, name, language, status, filename FROM translations ORDER BY language, name
-    `);
-  }
-  if (!stmts.getTranslationsByLanguage) {
-    stmts.getTranslationsByLanguage = database.query(`
-      SELECT id, name, language, status, filename FROM translations WHERE language = ? ORDER BY name
+      SELECT id, name, status, filename FROM translations ORDER BY name
     `);
   }
   if (!stmts.getTranslation) {
     stmts.getTranslation = database.query(`
-      SELECT id, name, language, status, filename FROM translations WHERE id = ?
+      SELECT id, name, status, filename FROM translations WHERE id = ?
     `);
   }
   if (!stmts.getVerse) {
@@ -151,12 +141,6 @@ export type { TranslationRow, VerseRow, ChapterCountRow, SearchRow };
 // Query functions
 export function getAllTranslations(): TranslationRow[] {
   return getStatements().getTranslations!.all() as TranslationRow[];
-}
-
-export function getTranslationsByLanguage(language: string): TranslationRow[] {
-  return getStatements().getTranslationsByLanguage!.all(
-    language
-  ) as TranslationRow[];
 }
 
 export function getTranslationById(id: string): TranslationRow | null {
@@ -250,14 +234,6 @@ export function searchVerses(
     .get(translationId, pattern) as { total: number };
 
   return { results, total: countResult?.total || 0 };
-}
-
-export function getAvailableLanguages(): string[] {
-  const database = getDatabase();
-  const rows = database
-    .query("SELECT DISTINCT language FROM translations ORDER BY language")
-    .all() as { language: string }[];
-  return rows.map((r) => r.language);
 }
 
 export function closeDatabase(): void {

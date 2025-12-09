@@ -1,32 +1,13 @@
 import { z } from "@hono/zod-openapi";
 
-export const LanguageQuerySchema = z.object({
-  language: z
-    .string()
-    .optional()
-    .openapi({
-      param: { name: "language", in: "query" },
-      example: "en",
-      description: "Language code (e.g., 'en', 'fr')",
-    }),
-});
-
-export const TranslationQuerySchema = z.object({
-  language: z
-    .string()
-    .optional()
-    .openapi({
-      param: { name: "language", in: "query" },
-      example: "en",
-      description: "Language code (e.g., 'en', 'fr')",
-    }),
+export const TranslationOnlyQuerySchema = z.object({
   translation: z
     .string()
     .optional()
     .openapi({
       param: { name: "translation", in: "query" },
-      example: "en-kjv",
-      description: "Translation ID (e.g., 'en-kjv', 'fr-lsg')",
+      example: "englishkjv",
+      description: "Translation ID (e.g., 'englishkjv', 'afrikaans')",
     }),
 });
 
@@ -39,20 +20,12 @@ export const SearchQuerySchema = z.object({
       example: "love",
       description: "Search query string",
     }),
-  language: z
-    .string()
-    .optional()
-    .openapi({
-      param: { name: "language", in: "query" },
-      example: "en",
-      description: "Language code",
-    }),
   translation: z
     .string()
     .optional()
     .openapi({
       param: { name: "translation", in: "query" },
-      example: "en-kjv",
+      example: "englishkjv",
       description: "Translation ID",
     }),
   limit: z
@@ -83,40 +56,24 @@ export const RefsQuerySchema = z.object({
       description:
         "Comma-separated list of verse references in dotted format (book.chapter.verse or book.chapter.verseStart-verseEnd)",
     }),
-  language: z
-    .string()
-    .optional()
-    .openapi({
-      param: { name: "language", in: "query" },
-      example: "en",
-      description: "Language code",
-    }),
   translation: z
     .string()
     .optional()
     .openapi({
       param: { name: "translation", in: "query" },
-      example: "en-kjv",
+      example: "englishkjv",
       description: "Translation ID",
     }),
 });
 
-export const CompareQuerySchema = z.object({
+export const CompareTranslationsQuerySchema = z.object({
   translations: z
     .string()
     .optional()
     .openapi({
       param: { name: "translations", in: "query" },
-      example: "en-kjv,en-web",
+      example: "englishkjv,englishweb",
       description: "Comma-separated list of translation IDs to compare",
-    }),
-  languages: z
-    .string()
-    .optional()
-    .openapi({
-      param: { name: "languages", in: "query" },
-      example: "en,fr",
-      description: "Comma-separated list of language codes to compare",
     }),
 });
 
@@ -159,27 +116,10 @@ export const TestamentSchema = z.enum(["old", "new"]).openapi({
   description: "Testament (Old or New)",
 });
 
-export const LanguageInfoSchema = z
-  .object({
-    code: z.string().openapi({ example: "en" }),
-    name: z.string().openapi({ example: "English" }),
-    native_name: z.string().openapi({ example: "English" }),
-    default: z.boolean().optional().openapi({ example: true }),
-  })
-  .openapi("LanguageInfo");
-
-export const LanguagesResponseSchema = z
-  .object({
-    default: z.string().openapi({ example: "en" }),
-    languages: z.array(LanguageInfoSchema),
-  })
-  .openapi("LanguagesResponse");
-
 export const TranslationItemSchema = z
   .object({
-    id: z.string().openapi({ example: "en-kjv" }),
+    id: z.string().openapi({ example: "englishkjv" }),
     name: z.string().openapi({ example: "King James Version" }),
-    language: z.string().openapi({ example: "en" }),
     status: z.string().openapi({ example: "complete" }),
     default: z.boolean().optional().openapi({ example: true }),
   })
@@ -187,8 +127,7 @@ export const TranslationItemSchema = z
 
 export const TranslationsResponseSchema = z
   .object({
-    default: z.string().openapi({ example: "en-kjv" }),
-    language: z.string().optional().openapi({ example: "en" }),
+    default: z.string().openapi({ example: "englishkjv" }),
     translations: z.array(TranslationItemSchema),
   })
   .openapi("TranslationsResponse");
@@ -204,8 +143,7 @@ export const BookListItemSchema = z
 
 export const BooksResponseSchema = z
   .object({
-    translation: z.string().openapi({ example: "en-kjv" }),
-    language: z.string().openapi({ example: "en" }),
+    translation: z.string().openapi({ example: "englishkjv" }),
     books: z.array(BookListItemSchema),
   })
   .openapi("BooksResponse");
@@ -214,7 +152,6 @@ export const BookResponseSchema = z
   .object({
     id: z.string().openapi({ example: "genesis" }),
     name: z.string().openapi({ example: "Genesis" }),
-    language: z.string().openapi({ example: "en" }),
     testament: TestamentSchema,
     chapters: z.number().openapi({ example: 50 }),
   })
@@ -237,7 +174,6 @@ export const ChapterSummarySchema = z
 export const ChaptersResponseSchema = z
   .object({
     book: BookRefSchema,
-    language: z.string().openapi({ example: "en" }),
     chapters: z.array(ChapterSummarySchema),
   })
   .openapi("ChaptersResponse");
@@ -254,8 +190,7 @@ export const VerseTextSchema = z
 
 export const ChapterResponseSchema = z
   .object({
-    translation: z.string().openapi({ example: "en-kjv" }),
-    language: z.string().openapi({ example: "en" }),
+    translation: z.string().openapi({ example: "englishkjv" }),
     book: BookRefSchema,
     chapter: z.number().openapi({ example: 3 }),
     verses: z.array(VerseTextSchema),
@@ -265,8 +200,7 @@ export const ChapterResponseSchema = z
 export const VerseResponseSchema = z
   .object({
     reference: z.string().openapi({ example: "John 3:16" }),
-    translation: z.string().openapi({ example: "en-kjv" }),
-    language: z.string().openapi({ example: "en" }),
+    translation: z.string().openapi({ example: "englishkjv" }),
     book: BookRefSchema,
     chapter: z.number().openapi({ example: 3 }),
     verse: z.number().openapi({ example: 16 }),
@@ -280,8 +214,7 @@ export const VerseResponseSchema = z
 export const VersesRangeResponseSchema = z
   .object({
     reference: z.string().openapi({ example: "Romans 8:28-30" }),
-    translation: z.string().openapi({ example: "en-kjv" }),
-    language: z.string().openapi({ example: "en" }),
+    translation: z.string().openapi({ example: "englishkjv" }),
     book: BookRefSchema,
     chapter: z.number().openapi({ example: 8 }),
     verses: z.array(VerseTextSchema),
@@ -303,17 +236,14 @@ export const MultipleVerseItemSchema = z
 
 export const MultipleVersesResponseSchema = z
   .object({
-    translation: z.string().openapi({ example: "en-kjv" }),
-    language: z.string().openapi({ example: "en" }),
+    translation: z.string().openapi({ example: "englishkjv" }),
     verses: z.array(MultipleVerseItemSchema),
   })
   .openapi("MultipleVersesResponse");
 
 export const ComparisonItemSchema = z
   .object({
-    language: z.string().openapi({ example: "en" }),
-    languageName: z.string().openapi({ example: "English" }),
-    translation: z.string().openapi({ example: "en-kjv" }),
+    translation: z.string().openapi({ example: "englishkjv" }),
     translationName: z.string().openapi({ example: "King James Version" }),
     bookName: z.string().openapi({ example: "John" }),
     text: z.string().openapi({
@@ -350,8 +280,7 @@ export const SearchResultSchema = z
 export const SearchResponseSchema = z
   .object({
     query: z.string().openapi({ example: "love" }),
-    translation: z.string().openapi({ example: "en-kjv" }),
-    language: z.string().openapi({ example: "en" }),
+    translation: z.string().openapi({ example: "englishkjv" }),
     total: z.number().openapi({ example: 150 }),
     limit: z.number().openapi({ example: 10 }),
     offset: z.number().openapi({ example: 0 }),

@@ -18,7 +18,12 @@ describe("Root Endpoint", () => {
       const res = await app.request("/openapi.json");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as {
+        openapi: string;
+        info: { title: string; version: string };
+        paths: Record<string, unknown>;
+        tags: Array<{ name: string }>;
+      };
       expect(data.openapi).toBe("3.1.0");
       expect(data.info.title).toBe("Bible API");
       expect(data.info.version).toBe("1.0.0");
@@ -26,9 +31,8 @@ describe("Root Endpoint", () => {
 
     test("includes all API paths", async () => {
       const res = await app.request("/openapi.json");
-      const data = await res.json();
+      const data = (await res.json()) as { paths: Record<string, unknown> };
 
-      expect(data.paths["/languages"]).toBeDefined();
       expect(data.paths["/translations"]).toBeDefined();
       expect(data.paths["/books"]).toBeDefined();
       expect(data.paths["/books/{id}"]).toBeDefined();
@@ -42,10 +46,9 @@ describe("Root Endpoint", () => {
 
     test("includes all tags", async () => {
       const res = await app.request("/openapi.json");
-      const data = await res.json();
+      const data = (await res.json()) as { tags: Array<{ name: string }> };
 
-      const tagNames = data.tags.map((t: { name: string }) => t.name);
-      expect(tagNames).toContain("Languages");
+      const tagNames = data.tags.map((t) => t.name);
       expect(tagNames).toContain("Translations");
       expect(tagNames).toContain("Books");
       expect(tagNames).toContain("Verses");
@@ -58,7 +61,7 @@ describe("Root Endpoint", () => {
       const res = await app.request("/invalid-endpoint");
       expect(res.status).toBe(404);
 
-      const data = await res.json();
+      const data = (await res.json()) as { error: { code: string; message: string } };
       expect(data.error.code).toBe("NOT_FOUND");
       expect(data.error.message).toBe("Endpoint not found");
     });
@@ -67,7 +70,7 @@ describe("Root Endpoint", () => {
       const res = await app.request("/some/deep/invalid/path");
       expect(res.status).toBe(404);
 
-      const data = await res.json();
+      const data = (await res.json()) as { error: { code: string } };
       expect(data.error.code).toBe("NOT_FOUND");
     });
   });

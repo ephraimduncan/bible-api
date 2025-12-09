@@ -1,7 +1,6 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Scalar } from "@scalar/hono-api-reference";
 import { cors } from "hono/cors";
-import languages from "./src/routes/languages";
 import translations from "./src/routes/translations";
 import books from "./src/routes/books";
 import verses from "./src/routes/verses";
@@ -10,7 +9,6 @@ import search from "./src/routes/search";
 const app = new OpenAPIHono();
 
 app.use("/*", cors());
-app.route("/languages", languages);
 app.route("/translations", translations);
 app.route("/books", books);
 app.route("/verses", verses);
@@ -35,12 +33,12 @@ app.doc("/openapi.json", {
       url: "http://localhost:3000",
       description: "Local development server",
     },
+    {
+      url: "https://bible-api.eightlabs.xyz",
+      description: "Production server",
+    },
   ],
   tags: [
-    {
-      name: "Languages",
-      description: "Endpoints for retrieving available languages",
-    },
     {
       name: "Translations",
       description: "Endpoints for retrieving Bible translations",

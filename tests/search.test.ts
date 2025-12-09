@@ -1,16 +1,34 @@
 import { describe, test, expect } from "bun:test";
 import app from "../index";
 
+interface SearchResult {
+  reference: string;
+  text: string;
+  highlight: string;
+}
+
+interface SearchResponse {
+  query: string;
+  translation: string;
+  total: number;
+  limit: number;
+  offset: number;
+  results: SearchResult[];
+}
+
+interface ErrorResponse {
+  error: { code: string; message: string };
+}
+
 describe("Search Endpoint", () => {
   describe("GET /search", () => {
     test("finds verses containing 'beginning'", async () => {
       const res = await app.request("/search?q=beginning");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
       expect(data.query).toBe("beginning");
-      expect(data.translation).toBe("en-kjv");
-      expect(data.language).toBe("en");
+      expect(data.translation).toBe("englishkj");
       expect(typeof data.total).toBe("number");
       expect(data.total).toBeGreaterThan(0);
       expect(Array.isArray(data.results)).toBe(true);
@@ -18,7 +36,7 @@ describe("Search Endpoint", () => {
 
     test("Genesis 1:1 appears in results for 'In the beginning'", async () => {
       const res = await app.request("/search?q=In the beginning");
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
 
       const genesis = data.results.find((r) =>
         r.reference.includes("Genesis 1:1")
@@ -28,7 +46,7 @@ describe("Search Endpoint", () => {
 
     test("each result has required fields", async () => {
       const res = await app.request("/search?q=love");
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
 
       for (const result of data.results) {
         expect(result.reference).toBeDefined();
@@ -42,7 +60,7 @@ describe("Search Endpoint", () => {
 
     test("results include highlighted matches with <em> tags", async () => {
       const res = await app.request("/search?q=love");
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
 
       const hasHighlight = data.results.some((r) =>
         r.highlight.includes("<em>")
@@ -52,7 +70,7 @@ describe("Search Endpoint", () => {
 
     test("highlights are case-insensitive", async () => {
       const res = await app.request("/search?q=LORD");
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
 
       expect(data.results.length).toBeGreaterThan(0);
     });
@@ -63,7 +81,7 @@ describe("Search Endpoint", () => {
       const res = await app.request("/search?q=the&limit=5");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
       expect(data.limit).toBe(5);
       expect(data.results.length).toBeLessThanOrEqual(5);
     });
@@ -72,13 +90,13 @@ describe("Search Endpoint", () => {
       const res = await app.request("/search?q=the&limit=5&offset=10");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
       expect(data.offset).toBe(10);
     });
 
     test("default limit is 10", async () => {
       const res = await app.request("/search?q=the");
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
 
       expect(data.limit).toBe(10);
       expect(data.results.length).toBeLessThanOrEqual(10);
@@ -86,7 +104,7 @@ describe("Search Endpoint", () => {
 
     test("default offset is 0", async () => {
       const res = await app.request("/search?q=the");
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
 
       expect(data.offset).toBe(0);
     });
@@ -95,7 +113,7 @@ describe("Search Endpoint", () => {
       const res = await app.request("/search?q=the&limit=200");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
       expect(data.limit).toBe(100);
     });
 
@@ -103,8 +121,8 @@ describe("Search Endpoint", () => {
       const page1 = await app.request("/search?q=the&limit=5&offset=0");
       const page2 = await app.request("/search?q=the&limit=5&offset=5");
 
-      const data1 = await page1.json();
-      const data2 = await page2.json();
+      const data1 = (await page1.json()) as SearchResponse;
+      const data2 = (await page2.json()) as SearchResponse;
 
       expect(data1.results.length).toBeGreaterThan(0);
       expect(data2.results.length).toBeGreaterThan(0);
@@ -115,49 +133,27 @@ describe("Search Endpoint", () => {
       const page1 = await app.request("/search?q=love&limit=5&offset=0");
       const page2 = await app.request("/search?q=love&limit=5&offset=5");
 
-      const data1 = await page1.json();
-      const data2 = await page2.json();
+      const data1 = (await page1.json()) as SearchResponse;
+      const data2 = (await page2.json()) as SearchResponse;
 
       expect(data1.total).toBe(data2.total);
     });
   });
 
-  describe("language and translation filters", () => {
-    test("uses specified language", async () => {
-      const res = await app.request("/search?q=amour&language=fr");
-      expect(res.status).toBe(200);
-
-      const data = await res.json();
-      expect(data.language).toBe("fr");
-    });
-
-    test("French search returns French book names", async () => {
-      const res = await app.request("/search?q=commencement&language=fr");
-      expect(res.status).toBe(200);
-
-      const data = await res.json();
-      expect(data.results.length).toBeGreaterThan(0);
-
-      const hasFrenchRef = data.results.some(
-        (r) => r.reference.includes("Genèse") || r.reference.includes("Jean")
-      );
-      expect(hasFrenchRef).toBe(true);
-      expect(data.language).toBe("fr");
-    });
-
+  describe("translation filter", () => {
     test("uses specified translation", async () => {
-      const res = await app.request("/search?q=beginning&translation=en-niv");
+      const res = await app.request("/search?q=beginning&translation=englishniv");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
-      expect(data.translation).toBe("en-niv");
+      const data = (await res.json()) as SearchResponse;
+      expect(data.translation).toBe("englishniv");
     });
 
     test("returns TRANSLATION_NOT_FOUND for invalid translation", async () => {
       const res = await app.request("/search?q=test&translation=invalid");
       expect(res.status).toBe(404);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("TRANSLATION_NOT_FOUND");
     });
   });
@@ -167,7 +163,7 @@ describe("Search Endpoint", () => {
       const res = await app.request("/search");
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("MISSING_QUERY");
       expect(data.error.message).toBe("Missing q query parameter");
     });
@@ -176,7 +172,7 @@ describe("Search Endpoint", () => {
       const res = await app.request("/search?q=");
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("MISSING_QUERY");
     });
 
@@ -184,7 +180,7 @@ describe("Search Endpoint", () => {
       const res = await app.request("/search?q=.*");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
       expect(data.query).toBe(".*");
     });
 
@@ -192,7 +188,7 @@ describe("Search Endpoint", () => {
       const res = await app.request("/search?q=%20%20%20");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
       expect(data.query).toBe("   ");
     });
   });
@@ -200,7 +196,7 @@ describe("Search Endpoint", () => {
   describe("search content", () => {
     test("searches through both Old and New Testament", async () => {
       const res = await app.request("/search?q=God&limit=100");
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
 
       expect(data.total).toBeGreaterThan(0);
     });
@@ -210,9 +206,9 @@ describe("Search Endpoint", () => {
       const uppercase = await app.request("/search?q=JESUS");
       const mixed = await app.request("/search?q=Jesus");
 
-      const lowData = await lowercase.json();
-      const upData = await uppercase.json();
-      const mixedData = await mixed.json();
+      const lowData = (await lowercase.json()) as SearchResponse;
+      const upData = (await uppercase.json()) as SearchResponse;
+      const mixedData = (await mixed.json()) as SearchResponse;
 
       expect(lowData.total).toBeGreaterThan(0);
       expect(upData.total).toBeGreaterThan(0);
@@ -221,14 +217,14 @@ describe("Search Endpoint", () => {
 
     test("finds partial word matches", async () => {
       const res = await app.request("/search?q=creat");
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
 
       expect(data.total).toBeGreaterThan(0);
     });
 
     test("finds multi-word phrases", async () => {
       const res = await app.request("/search?q=the Lord is");
-      const data = await res.json();
+      const data = (await res.json()) as SearchResponse;
 
       expect(data.total).toBeGreaterThan(0);
       for (const result of data.results) {

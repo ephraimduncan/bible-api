@@ -44,41 +44,11 @@ const parser = new XMLParser({
   textNodeName: "#text",
 });
 
-function parseLanguageFromFilename(filename: string): string {
-  const lower = filename.toLowerCase();
-  if (lower.startsWith("english")) return "en";
-  if (lower.startsWith("french")) return "fr";
-  if (lower.startsWith("spanish")) return "es";
-  if (lower.startsWith("german")) return "de";
-  if (lower.startsWith("portuguese")) return "pt";
-  if (lower.startsWith("chinese")) return "zh";
-  return "en";
-}
-
 function parseTranslationIdFromFilename(filename: string): string {
-  const baseName = filename.replace(".xml", "").replace("Bible", "");
-  const language = parseLanguageFromFilename(filename);
-
-  let abbr = "";
-
-  if (baseName.startsWith("English")) {
-    abbr = baseName.replace("English", "").toLowerCase();
-    if (abbr === "kj") abbr = "kjv";
-    if (abbr === "amplifiedclassic") abbr = "ampc";
-    if (abbr === "amplified") abbr = "amp";
-    if (abbr === "nkj") abbr = "nkjv";
-    if (abbr === "nasu") abbr = "nasb95";
-    if (abbr === "") abbr = "kjv";
-  } else if (baseName.startsWith("French")) {
-    abbr = baseName.replace("French", "").toLowerCase();
-    if (abbr === "") abbr = "lsg";
-    if (abbr === "2004") abbr = "lsg2004";
-    if (abbr === "nbs") abbr = "nbs";
-  } else {
-    abbr = baseName.toLowerCase();
-  }
-
-  return `${language}-${abbr || "default"}`;
+  // Simply use the filename without .xml and "Bible" suffix as the ID
+  // e.g., "AfrikaansBible.xml" -> "afrikaans"
+  // e.g., "EnglishKJVBible.xml" -> "englishkjv"
+  return filename.replace(".xml", "").replace(/Bible$/i, "").toLowerCase();
 }
 
 function initializeDatabase(db: Database): void {
@@ -87,14 +57,10 @@ function initializeDatabase(db: Database): void {
     CREATE TABLE IF NOT EXISTS translations (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      language TEXT NOT NULL,
       status TEXT,
       filename TEXT
     )
   `);
-  db.run(
-    "CREATE INDEX IF NOT EXISTS idx_translations_language ON translations(language)"
-  );
 
   // Create verses table
   db.run(`
@@ -165,12 +131,11 @@ async function importXmlFile(
   const name =
     bible["@_translation"] || bible["@_name"] || filename.replace(".xml", "");
   const status = bible["@_status"] || "Unknown";
-  const language = parseLanguageFromFilename(filename);
 
   // Insert translation
   db.run(
-    "INSERT INTO translations (id, name, language, status, filename) VALUES (?, ?, ?, ?, ?)",
-    [translationId, name, language, status, filename]
+    "INSERT INTO translations (id, name, status, filename) VALUES (?, ?, ?, ?)",
+    [translationId, name, status, filename]
   );
 
   // Prepare verse insert

@@ -10,14 +10,10 @@ type Book = {
 
 type BookListResponse = {
   translation: string;
-  language: string;
   books: Book[];
 };
 
-type BookResponse = Book & {
-  language?: string;
-  translation?: string;
-};
+type BookResponse = Book;
 
 type ChapterSummary = {
   number: number;
@@ -39,7 +35,6 @@ type VersesResponse = {
   book: Book;
   chapter: number;
   verses: Verse[];
-  language?: string;
 };
 
 type ErrorResponse = {
@@ -57,8 +52,7 @@ describe("Books Endpoints", () => {
       expect(res.status).toBe(200);
 
       const data = await toJson<BookListResponse>(res);
-      expect(data.translation).toBe("en-kjv");
-      expect(data.language).toBe("en");
+      expect(data.translation).toBe("englishkj");
       expect(Array.isArray(data.books)).toBe(true);
       expect(data.books.length).toBe(66);
     });
@@ -100,23 +94,12 @@ describe("Books Endpoints", () => {
       expect(revelation.chapters).toBe(22);
     });
 
-    test("returns French book names with language parameter", async () => {
-      const res = await app.request("/books?language=fr");
-      expect(res.status).toBe(200);
-
-      const data = await toJson<BookListResponse>(res);
-      expect(data.language).toBe("fr");
-
-      const genesis = data.books[0]!;
-      expect(genesis.name).toBe("Genèse");
-    });
-
     test("uses specified translation", async () => {
-      const res = await app.request("/books?translation=fr-lsg");
+      const res = await app.request("/books?translation=englishniv");
       expect(res.status).toBe(200);
 
       const data = await toJson<BookListResponse>(res);
-      expect(data.translation).toBe("fr-lsg");
+      expect(data.translation).toBe("englishniv");
     });
   });
 
@@ -170,15 +153,6 @@ describe("Books Endpoints", () => {
       expect(data.id).toBe("2sa");
       expect(data.name).toBe("2 Samuel");
       expect(data.testament).toBe("old");
-    });
-
-    test("returns French name with language parameter", async () => {
-      const res = await app.request("/books/gen?language=fr");
-      expect(res.status).toBe(200);
-
-      const data = await toJson<BookResponse>(res);
-      expect(data.name).toBe("Genèse");
-      expect(data.language).toBe("fr");
     });
 
     test("returns BOOK_NOT_FOUND for invalid book ID", async () => {
@@ -254,7 +228,7 @@ describe("Books Endpoints", () => {
       expect(res.status).toBe(200);
 
       const data = await toJson<VersesResponse>(res);
-      expect(data.translation).toBe("en-kjv");
+      expect(data.translation).toBe("englishkj");
       expect(data.book.id).toBe("gen");
       expect(data.book.name).toBe("Genesis");
       expect(data.chapter).toBe(1);
@@ -284,19 +258,11 @@ describe("Books Endpoints", () => {
     });
 
     test("uses specified translation", async () => {
-      const res = await app.request("/books/gen/chapters/1?translation=en-niv");
+      const res = await app.request("/books/gen/chapters/1?translation=englishniv");
       expect(res.status).toBe(200);
 
       const data = await toJson<VersesResponse>(res);
-      expect(data.translation).toBe("en-niv");
-    });
-
-    test("returns French book name with language parameter", async () => {
-      const res = await app.request("/books/gen/chapters/1?language=fr");
-      expect(res.status).toBe(200);
-
-      const data = await toJson<VersesResponse>(res);
-      expect(data.book.name).toBe("Genèse");
+      expect(data.translation).toBe("englishniv");
     });
 
     test("returns BOOK_NOT_FOUND for invalid book", async () => {

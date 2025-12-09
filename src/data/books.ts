@@ -571,10 +571,4 @@ export function getBookInfo(book: BookData, language: string): BookInfo {
   };
 }
 
-export const LANGUAGES: Record<string, { name: string; nativeName: string }> = {
-  en: { name: "English", nativeName: "English" },
-  fr: { name: "French", nativeName: "Français" },
-};
-
-export const DEFAULT_LANGUAGE = "en";
-export const DEFAULT_TRANSLATION = "en-kjv";
+export const DEFAULT_TRANSLATION = "englishkj";

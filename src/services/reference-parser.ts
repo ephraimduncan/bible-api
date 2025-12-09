@@ -37,7 +37,11 @@ export function parseReference(ref: string): ParsedRefResult {
     };
   }
 
-  const [, bookId, chapterStr, verseStartStr, verseEndStr] = match;
+  const bookId = match[1]!;
+  const chapterStr = match[2]!;
+  const verseStartStr = match[3]!;
+  const verseEndStr = match[4];
+
   const book = getBookByIdOrAlias(bookId);
 
   if (!book) {

@@ -1,13 +1,12 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import { BOOKS, getBookByIdOrAlias, DEFAULT_LANGUAGE } from "../data/books";
+import { BOOKS, getBookByIdOrAlias, DEFAULT_TRANSLATION } from "../data/books";
 import {
-  getDefaultTranslation,
   getTranslationMeta,
   getBookChaptersFromDb,
   getChapterVersesFromDb,
 } from "../services/bible-loader";
 import {
-  TranslationQuerySchema,
+  TranslationOnlyQuerySchema,
   BookIdParamSchema,
   ChapterParamSchema,
   BooksResponseSchema,
@@ -26,7 +25,7 @@ const getBooksRoute = createRoute({
   summary: "List all books",
   description: "Get a list of all books in the Bible with chapter counts",
   request: {
-    query: TranslationQuerySchema,
+    query: TranslationOnlyQuerySchema,
   },
   responses: {
     200: {
@@ -49,20 +48,16 @@ const getBooksRoute = createRoute({
 });
 
 books.openapi(getBooksRoute, async (c) => {
-  const { language: langParam, translation: translationId } =
-    c.req.valid("query");
-  const language = langParam ?? DEFAULT_LANGUAGE;
+  const { translation: translationId } = c.req.valid("query");
 
-  const translation = translationId
-    ? await getTranslationMeta(translationId)
-    : await getDefaultTranslation(language);
+  const translation = await getTranslationMeta(translationId ?? DEFAULT_TRANSLATION);
 
   if (!translation) {
     return c.json(
       {
         error: {
           code: "TRANSLATION_NOT_FOUND",
-          message: `Translation '${translationId ?? language}' not found`,
+          message: `Translation '${translationId ?? DEFAULT_TRANSLATION}' not found`,
         },
       },
       404
@@ -72,10 +67,9 @@ books.openapi(getBooksRoute, async (c) => {
   return c.json(
     {
       translation: translation.id,
-      language,
       books: BOOKS.map((book) => ({
         id: book.id,
-        name: language === "fr" ? book.names.fr : book.names.en,
+        name: book.names.en,
         testament: book.testament,
         chapters: book.chapters,
       })),
@@ -92,7 +86,6 @@ const getBookRoute = createRoute({
   description: "Get information about a specific book by ID or alias",
   request: {
     params: BookIdParamSchema,
-    query: TranslationQuerySchema,
   },
   responses: {
     200: {
@@ -116,8 +109,6 @@ const getBookRoute = createRoute({
 
 books.openapi(getBookRoute, async (c) => {
   const { id } = c.req.valid("param");
-  const { language: langParam } = c.req.valid("query");
-  const language = langParam ?? DEFAULT_LANGUAGE;
 
   const book = getBookByIdOrAlias(id);
 
@@ -136,8 +127,7 @@ books.openapi(getBookRoute, async (c) => {
   return c.json(
     {
       id: book.id,
-      name: language === "fr" ? book.names.fr : book.names.en,
-      language,
+      name: book.names.en,
       testament: book.testament,
       chapters: book.chapters,
     },
@@ -153,7 +143,7 @@ const getChaptersRoute = createRoute({
   description: "Get a list of all chapters in a book with verse counts",
   request: {
     params: BookIdParamSchema,
-    query: TranslationQuerySchema,
+    query: TranslationOnlyQuerySchema,
   },
   responses: {
     200: {
@@ -177,9 +167,7 @@ const getChaptersRoute = createRoute({
 
 books.openapi(getChaptersRoute, async (c) => {
   const { id } = c.req.valid("param");
-  const { language: langParam, translation: translationId } =
-    c.req.valid("query");
-  const language = langParam ?? DEFAULT_LANGUAGE;
+  const { translation: translationId } = c.req.valid("query");
 
   const bookData = getBookByIdOrAlias(id);
 
@@ -195,29 +183,25 @@ books.openapi(getChaptersRoute, async (c) => {
     );
   }
 
-  const translation = translationId
-    ? await getTranslationMeta(translationId)
-    : await getDefaultTranslation(language);
+  const translation = await getTranslationMeta(translationId ?? DEFAULT_TRANSLATION);
 
   if (!translation) {
     return c.json(
       {
         error: {
           code: "TRANSLATION_NOT_FOUND",
-          message: `Translation '${translationId ?? language}' not found`,
+          message: `Translation '${translationId ?? DEFAULT_TRANSLATION}' not found`,
         },
       },
       404
     );
   }
 
-  const bookName = language === "fr" ? bookData.names.fr : bookData.names.en;
   const chapters = getBookChaptersFromDb(translation.id, bookData.number);
 
   return c.json(
     {
-      book: { id: bookData.id, name: bookName },
-      language,
+      book: { id: bookData.id, name: bookData.names.en },
       chapters,
     },
     200
@@ -232,7 +216,7 @@ const getChapterRoute = createRoute({
   description: "Get all verses in a specific chapter",
   request: {
     params: ChapterParamSchema,
-    query: TranslationQuerySchema,
+    query: TranslationOnlyQuerySchema,
   },
   responses: {
     200: {
@@ -257,9 +241,7 @@ const getChapterRoute = createRoute({
 books.openapi(getChapterRoute, async (c) => {
   const { id, chapter } = c.req.valid("param");
   const chapterNum = parseInt(chapter, 10);
-  const { language: langParam, translation: translationId } =
-    c.req.valid("query");
-  const language = langParam ?? DEFAULT_LANGUAGE;
+  const { translation: translationId } = c.req.valid("query");
 
   const bookData = getBookByIdOrAlias(id);
 
@@ -291,16 +273,14 @@ books.openapi(getChapterRoute, async (c) => {
     );
   }
 
-  const translation = translationId
-    ? await getTranslationMeta(translationId)
-    : await getDefaultTranslation(language);
+  const translation = await getTranslationMeta(translationId ?? DEFAULT_TRANSLATION);
 
   if (!translation) {
     return c.json(
       {
         error: {
           code: "TRANSLATION_NOT_FOUND",
-          message: `Translation '${translationId ?? language}' not found`,
+          message: `Translation '${translationId ?? DEFAULT_TRANSLATION}' not found`,
         },
       },
       404
@@ -325,13 +305,10 @@ books.openapi(getChapterRoute, async (c) => {
     );
   }
 
-  const bookName = language === "fr" ? bookData.names.fr : bookData.names.en;
-
   return c.json(
     {
       translation: translation.id,
-      language,
-      book: { id: bookData.id, name: bookName },
+      book: { id: bookData.id, name: bookData.names.en },
       chapter: chapterNum,
       verses: verses.map((v) => ({
         number: v.number,

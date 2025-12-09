@@ -1,11 +1,7 @@
 import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import {
-  discoverTranslations,
-  getTranslationsByLanguage,
-} from "../services/bible-loader";
+import { discoverTranslations } from "../services/bible-loader";
 import { DEFAULT_TRANSLATION } from "../data/books";
 import {
-  LanguageQuerySchema,
   TranslationsResponseSchema,
   ErrorResponseSchema,
 } from "../schemas/openapi";
@@ -17,11 +13,7 @@ const getTranslationsRoute = createRoute({
   path: "/",
   tags: ["Translations"],
   summary: "List available translations",
-  description:
-    "Get a list of all available Bible translations, optionally filtered by language",
-  request: {
-    query: LanguageQuerySchema,
-  },
+  description: "Get a list of all available Bible translations",
   responses: {
     200: {
       content: {
@@ -31,40 +23,35 @@ const getTranslationsRoute = createRoute({
       },
       description: "List of available translations",
     },
-    400: {
+    500: {
       content: {
         "application/json": {
           schema: ErrorResponseSchema,
         },
       },
-      description: "Invalid query parameters",
+      description: "Internal server error",
     },
   },
 });
 
 translations.openapi(getTranslationsRoute, async (c) => {
-  const { language } = c.req.valid("query");
+  const translationList = await discoverTranslations();
 
-  let translationList = await discoverTranslations();
-
-  if (language) {
-    translationList = await getTranslationsByLanguage(language);
-  }
-
-  return c.json({
-    default: DEFAULT_TRANSLATION,
-    ...(language && { language }),
-    translations: translationList.map((t) => {
-      const isDefault = t.id === DEFAULT_TRANSLATION;
-      return {
-        id: t.id,
-        name: t.name,
-        language: t.language,
-        status: t.status,
-        ...(isDefault && { default: true }),
-      };
-    }),
-  });
+  return c.json(
+    {
+      default: DEFAULT_TRANSLATION,
+      translations: translationList.map((t) => {
+        const isDefault = t.id === DEFAULT_TRANSLATION;
+        return {
+          id: t.id,
+          name: t.name,
+          status: t.status,
+          ...(isDefault && { default: true }),
+        };
+      }),
+    },
+    200
+  );
 });
 
 export default translations;
