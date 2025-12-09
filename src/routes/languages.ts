@@ -1,11 +1,40 @@
-import { Hono } from "hono";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { getAvailableLanguages } from "../services/bible-loader";
 import { LANGUAGES, DEFAULT_LANGUAGE } from "../data/books";
-import type { LanguagesResponse } from "../schemas";
+import {
+  LanguagesResponseSchema,
+  ErrorResponseSchema,
+} from "../schemas/openapi";
 
-const languages = new Hono();
+const languages = new OpenAPIHono();
 
-languages.get("/", async (c) => {
+const getLanguagesRoute = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Languages"],
+  summary: "List available languages",
+  description: "Get a list of all available languages for Bible translations",
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: LanguagesResponseSchema,
+        },
+      },
+      description: "List of available languages",
+    },
+    500: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Internal server error",
+    },
+  },
+});
+
+languages.openapi(getLanguagesRoute, async (c) => {
   const availableCodes = await getAvailableLanguages();
 
   const languageList = availableCodes.map((code) => {
@@ -19,12 +48,10 @@ languages.get("/", async (c) => {
     };
   });
 
-  const response: LanguagesResponse = {
+  return c.json({
     default: DEFAULT_LANGUAGE,
     languages: languageList,
-  };
-
-  return c.json(response);
+  });
 });
 
 export default languages;

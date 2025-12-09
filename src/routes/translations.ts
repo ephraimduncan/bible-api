@@ -1,29 +1,49 @@
-import { Hono } from "hono";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import {
   discoverTranslations,
   getTranslationsByLanguage,
 } from "../services/bible-loader";
 import { DEFAULT_TRANSLATION } from "../data/books";
-import { LanguageQuerySchema, type TranslationsResponse } from "../schemas";
+import {
+  LanguageQuerySchema,
+  TranslationsResponseSchema,
+  ErrorResponseSchema,
+} from "../schemas/openapi";
 
-const translations = new Hono();
+const translations = new OpenAPIHono();
 
-translations.get("/", async (c) => {
-  const queryResult = LanguageQuerySchema.safeParse(c.req.query());
-
-  if (!queryResult.success) {
-    return c.json(
-      {
-        error: {
-          code: "INVALID_QUERY",
-          message: queryResult.error.message,
+const getTranslationsRoute = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Translations"],
+  summary: "List available translations",
+  description:
+    "Get a list of all available Bible translations, optionally filtered by language",
+  request: {
+    query: LanguageQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: TranslationsResponseSchema,
         },
       },
-      400
-    );
-  }
+      description: "List of available translations",
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Invalid query parameters",
+    },
+  },
+});
 
-  const { language } = queryResult.data;
+translations.openapi(getTranslationsRoute, async (c) => {
+  const { language } = c.req.valid("query");
 
   let translationList = await discoverTranslations();
 
@@ -31,7 +51,7 @@ translations.get("/", async (c) => {
     translationList = await getTranslationsByLanguage(language);
   }
 
-  const response: TranslationsResponse = {
+  return c.json({
     default: DEFAULT_TRANSLATION,
     ...(language && { language }),
     translations: translationList.map((t) => {
@@ -44,9 +64,7 @@ translations.get("/", async (c) => {
         ...(isDefault && { default: true }),
       };
     }),
-  };
-
-  return c.json(response);
+  });
 });
 
 export default translations;

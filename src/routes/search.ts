@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import {
   getDefaultTranslation,
   getTranslationMeta,
@@ -7,11 +7,45 @@ import { searchVerses } from "../services/database";
 import { getBookByNumber, DEFAULT_LANGUAGE } from "../data/books";
 import {
   SearchQuerySchema,
-  type SearchResponse,
-  type SearchResult,
-} from "../schemas";
+  SearchResponseSchema,
+  ErrorResponseSchema,
+} from "../schemas/openapi";
 
-const search = new Hono();
+const search = new OpenAPIHono({
+  defaultHook: (result, c) => {
+    if (!result.success) {
+      const issues = result.error.issues;
+      const isMissingQ = issues.some(
+        (i) => i.path[0] === "q" && i.code === "too_small"
+      );
+      const isInvalidType = issues.some(
+        (i) => i.path[0] === "q" && i.code === "invalid_type"
+      );
+
+      if (isMissingQ || isInvalidType) {
+        return c.json(
+          {
+            error: {
+              code: "MISSING_QUERY",
+              message: "Missing q query parameter",
+            },
+          },
+          400
+        );
+      }
+
+      return c.json(
+        {
+          error: {
+            code: "INVALID_QUERY",
+            message: result.error.message,
+          },
+        },
+        400
+      );
+    }
+  },
+});
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -23,35 +57,56 @@ function highlightMatches(text: string, query: string): string {
   return text.replace(regex, "<em>$1</em>");
 }
 
-search.get("/", async (c) => {
-  const parsedQuery = SearchQuerySchema.safeParse(c.req.query());
-
-  if (!parsedQuery.success) {
-    const missingQuery = parsedQuery.error.issues.some(
-      (issue) => issue.path[0] === "q"
-    );
-
-    return c.json(
-      {
-        error: {
-          code: missingQuery ? "MISSING_QUERY" : "INVALID_QUERY",
-          message: missingQuery
-            ? "Missing q query parameter"
-            : parsedQuery.error.message,
+const searchRoute = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Search"],
+  summary: "Search verses",
+  description:
+    "Search for verses containing a specific query string with highlighted results",
+  request: {
+    query: SearchQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: SearchResponseSchema,
         },
       },
-      400
-    );
-  }
+      description: "Search results with highlighted matches",
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Missing or invalid query parameter",
+    },
+    404: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Translation not found",
+    },
+  },
+});
 
+search.openapi(searchRoute, async (c) => {
   const {
     q: query,
     language: langParam,
     translation: translationId,
-    limit,
-    offset,
-  } = parsedQuery.data;
+    limit: limitStr,
+    offset: offsetStr,
+  } = c.req.valid("query");
+
   const language = langParam ?? DEFAULT_LANGUAGE;
+  const limit = Math.min(limitStr ? parseInt(limitStr, 10) : 10, 100);
+  const offset = offsetStr ? parseInt(offsetStr, 10) : 0;
 
   const translation = translationId
     ? await getTranslationMeta(translationId)
@@ -76,7 +131,7 @@ search.get("/", async (c) => {
     offset
   );
 
-  const results: SearchResult[] = dbResults.map((row) => {
+  const results = dbResults.map((row) => {
     const bookData = getBookByNumber(row.book);
     const bookName = bookData
       ? language === "fr"
@@ -91,17 +146,18 @@ search.get("/", async (c) => {
     };
   });
 
-  const response: SearchResponse = {
-    query,
-    translation: translation.id,
-    language,
-    total,
-    limit,
-    offset,
-    results,
-  };
-
-  return c.json(response);
+  return c.json(
+    {
+      query,
+      translation: translation.id,
+      language,
+      total,
+      limit,
+      offset,
+      results,
+    },
+    200
+  );
 });
 
 export default search;

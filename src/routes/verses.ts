@@ -1,4 +1,4 @@
-import { Hono } from "hono";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import {
   parseReference,
   formatReference,
@@ -15,39 +15,93 @@ import {
   TranslationQuerySchema,
   RefsQuerySchema,
   CompareQuerySchema,
-  type VerseResponse,
-  type VersesRangeResponse,
-  type MultipleVersesResponse,
-  type CompareResponse,
-} from "../schemas";
+  VerseRefParamSchema,
+  VerseResponseSchema,
+  VersesRangeResponseSchema,
+  MultipleVersesResponseSchema,
+  CompareResponseSchema,
+  ErrorResponseSchema,
+} from "../schemas/openapi";
 
-const verses = new Hono();
+const verses = new OpenAPIHono({
+  defaultHook: (result, c) => {
+    if (!result.success) {
+      const issues = result.error.issues;
+      const isMissingRefs = issues.some(
+        (i) =>
+          i.path[0] === "refs" &&
+          (i.code === "too_small" || i.code === "invalid_type")
+      );
 
-verses.get("/", async (c) => {
-  const parsedQuery = RefsQuerySchema.safeParse(c.req.query());
+      if (isMissingRefs) {
+        return c.json(
+          {
+            error: {
+              code: "MISSING_REFS",
+              message: "refs parameter is required",
+            },
+          },
+          400
+        );
+      }
 
-  if (!parsedQuery.success) {
-    const message = parsedQuery.error.message;
-    const missingRefs = parsedQuery.error.issues.some(
-      (issue) => issue.path[0] === "refs"
-    );
+      return c.json(
+        {
+          error: {
+            code: "INVALID_QUERY",
+            message: result.error.message,
+          },
+        },
+        400
+      );
+    }
+  },
+});
 
-    return c.json(
-      {
-        error: {
-          code: missingRefs ? "MISSING_REFS" : "INVALID_QUERY",
-          message,
+const getMultipleVersesRoute = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Verses"],
+  summary: "Get multiple verses",
+  description:
+    "Get multiple verses by comma-separated dotted refs (e.g., refs=jhn.3.16,rom.8.28)",
+  request: {
+    query: RefsQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: MultipleVersesResponseSchema,
         },
       },
-      400
-    );
-  }
+      description: "Multiple verses retrieved successfully",
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Missing refs parameter or invalid reference",
+    },
+    404: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Translation not found",
+    },
+  },
+});
 
+verses.openapi(getMultipleVersesRoute, async (c) => {
   const {
     refs,
     language: langParam,
     translation: translationId,
-  } = parsedQuery.data;
+  } = c.req.valid("query");
   const language = langParam ?? DEFAULT_LANGUAGE;
 
   const translation = translationId
@@ -67,7 +121,13 @@ verses.get("/", async (c) => {
   }
 
   const parsedRefs = parseMultipleReferences(refs);
-  const results: MultipleVersesResponse["verses"] = [];
+  const results: Array<{
+    reference: string;
+    book: string;
+    chapter: number;
+    verse: number;
+    text: string;
+  }> = [];
 
   for (const parsed of parsedRefs) {
     if (!parsed.success) {
@@ -102,33 +162,52 @@ verses.get("/", async (c) => {
     });
   }
 
-  const response: MultipleVersesResponse = {
-    translation: translation.id,
-    language,
-    verses: results,
-  };
-
-  return c.json(response);
+  return c.json(
+    {
+      translation: translation.id,
+      language,
+      verses: results,
+    },
+    200
+  );
 });
 
-verses.get("/:ref/compare", async (c) => {
-  const ref = c.req.param("ref");
-  const queryResult = CompareQuerySchema.safeParse(c.req.query());
-
-  if (!queryResult.success) {
-    return c.json(
-      {
-        error: {
-          code: "INVALID_QUERY",
-          message: queryResult.error.message,
+const compareVerseRoute = createRoute({
+  method: "get",
+  path: "/{ref}/compare",
+  tags: ["Verses"],
+  summary: "Compare verse across translations",
+  description:
+    "Compare a verse across multiple translations or languages. Provide either translations or languages parameter.",
+  request: {
+    params: VerseRefParamSchema,
+    query: CompareQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: CompareResponseSchema,
         },
       },
-      400
-    );
-  }
+      description: "Verse comparison across translations",
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description:
+        "Invalid reference or missing translations/languages parameter",
+    },
+  },
+});
 
+verses.openapi(compareVerseRoute, async (c) => {
+  const { ref } = c.req.valid("param");
   const { translations: translationsParam, languages: languagesParam } =
-    queryResult.data;
+    c.req.valid("query");
 
   const parsed = parseReference(ref);
   if (!parsed.success) {
@@ -143,7 +222,14 @@ verses.get("/:ref/compare", async (c) => {
     );
   }
 
-  const comparisons: CompareResponse["comparisons"] = [];
+  const comparisons: Array<{
+    language: string;
+    languageName: string;
+    translation: string;
+    translationName: string;
+    bookName: string;
+    text: string;
+  }> = [];
 
   if (translationsParam) {
     const translationIds = translationsParam.split(",").map((t) => t.trim());
@@ -215,35 +301,62 @@ verses.get("/:ref/compare", async (c) => {
     );
   }
 
-  const response: CompareResponse = {
-    reference: formatReference(parsed.reference, parsed.book, "en"),
-    book: { id: parsed.book.id },
-    chapter: parsed.reference.chapter,
-    verse: parsed.reference.verseStart,
-    comparisons,
-  };
-
-  return c.json(response);
+  return c.json(
+    {
+      reference: formatReference(parsed.reference, parsed.book, "en"),
+      book: { id: parsed.book.id },
+      chapter: parsed.reference.chapter,
+      verse: parsed.reference.verseStart,
+      comparisons,
+    },
+    200
+  );
 });
 
-verses.get("/:ref", async (c) => {
-  const ref = c.req.param("ref");
-  const queryResult = TranslationQuerySchema.safeParse(c.req.query());
-
-  if (!queryResult.success) {
-    return c.json(
-      {
-        error: {
-          code: "INVALID_QUERY",
-          message: queryResult.error.message,
+const getVerseRoute = createRoute({
+  method: "get",
+  path: "/{ref}",
+  tags: ["Verses"],
+  summary: "Get a verse or verse range",
+  description:
+    "Get a single verse (e.g., jhn.3.16) or a range (e.g., rom.8.28-30) using dotted refs",
+  request: {
+    params: VerseRefParamSchema,
+    query: TranslationQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: VerseResponseSchema.or(VersesRangeResponseSchema),
         },
       },
-      400
-    );
-  }
+      description: "Verse or verse range retrieved successfully",
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Invalid verse reference",
+    },
+    404: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+        },
+      },
+      description: "Verse or translation not found",
+    },
+  },
+});
 
-  const language = queryResult.data.language || DEFAULT_LANGUAGE;
-  const translationId = queryResult.data.translation;
+verses.openapi(getVerseRoute, async (c) => {
+  const { ref } = c.req.valid("param");
+  const { language: langParam, translation: translationId } =
+    c.req.valid("query");
+  const language = langParam ?? DEFAULT_LANGUAGE;
 
   const parsed = parseReference(ref);
   if (!parsed.success) {
@@ -301,19 +414,20 @@ verses.get("/:ref", async (c) => {
       );
     }
 
-    const response: VersesRangeResponse = {
-      reference: formatReference(parsed.reference, parsed.book, language),
-      translation: translation.id,
-      language,
-      book: { id: parsed.book.id, name: bookName },
-      chapter: parsed.reference.chapter,
-      verses: versesInRange.map((v) => ({
-        number: v.number,
-        text: v.text,
-      })),
-    };
-
-    return c.json(response);
+    return c.json(
+      {
+        reference: formatReference(parsed.reference, parsed.book, language),
+        translation: translation.id,
+        language,
+        book: { id: parsed.book.id, name: bookName },
+        chapter: parsed.reference.chapter,
+        verses: versesInRange.map((v) => ({
+          number: v.number,
+          text: v.text,
+        })),
+      },
+      200
+    );
   }
 
   const verse = getVerseFromDb(
@@ -335,17 +449,18 @@ verses.get("/:ref", async (c) => {
     );
   }
 
-  const response: VerseResponse = {
-    reference: formatReference(parsed.reference, parsed.book, language),
-    translation: translation.id,
-    language,
-    book: { id: parsed.book.id, name: bookName },
-    chapter: parsed.reference.chapter,
-    verse: verse.number,
-    text: verse.text,
-  };
-
-  return c.json(response);
+  return c.json(
+    {
+      reference: formatReference(parsed.reference, parsed.book, language),
+      translation: translation.id,
+      language,
+      book: { id: parsed.book.id, name: bookName },
+      chapter: parsed.reference.chapter,
+      verse: verse.number,
+      text: verse.text,
+    },
+    200
+  );
 });
 
 export default verses;
