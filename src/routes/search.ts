@@ -1,17 +1,48 @@
-import { Hono } from "hono";
-import {
-  getDefaultTranslation,
-  getTranslationMeta,
-} from "../services/bible-loader";
+import { OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { getTranslationMeta } from "../services/bible-loader";
 import { searchVerses } from "../services/database";
-import { getBookByNumber, DEFAULT_LANGUAGE } from "../data/books";
+import { getBookByNumber, DEFAULT_TRANSLATION } from "../data/books";
 import {
   SearchQuerySchema,
-  type SearchResponse,
-  type SearchResult,
-} from "../schemas";
+  SearchResponseSchema,
+  ErrorResponseSchema,
+} from "../schemas/openapi";
 
-const search = new Hono();
+const search = new OpenAPIHono({
+  defaultHook: (result, c) => {
+    if (!result.success) {
+      const issues = result.error.issues;
+      const isMissingQ = issues.some(
+        (i) => i.path[0] === "q" && i.code === "too_small"
+      );
+      const isInvalidType = issues.some(
+        (i) => i.path[0] === "q" && i.code === "invalid_type"
+      );
+
+      if (isMissingQ || isInvalidType) {
+        return c.json(
+          {
+            error: {
+              code: "MISSING_QUERY",
+              message: "Missing q query parameter",
+            },
+          },
+          400
+        );
+      }
+
+      return c.json(
+        {
+          error: {
+            code: "INVALID_QUERY",
+            message: result.error.message,
+          },
+        },
+        400
+      );
+    }
+  },
+});
 
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -23,46 +54,97 @@ function highlightMatches(text: string, query: string): string {
   return text.replace(regex, "<em>$1</em>");
 }
 
-search.get("/", async (c) => {
-  const parsedQuery = SearchQuerySchema.safeParse(c.req.query());
-
-  if (!parsedQuery.success) {
-    const missingQuery = parsedQuery.error.issues.some(
-      (issue) => issue.path[0] === "q"
-    );
-
-    return c.json(
-      {
-        error: {
-          code: missingQuery ? "MISSING_QUERY" : "INVALID_QUERY",
-          message: missingQuery
-            ? "Missing q query parameter"
-            : parsedQuery.error.message,
+const searchRoute = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Search"],
+  summary: "Search verses",
+  description:
+    "Search for verses containing a specific query string with highlighted results",
+  request: {
+    query: SearchQuerySchema,
+  },
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: SearchResponseSchema,
+          example: {
+            query: "love",
+            translation: "en-kjv",
+            language: "en",
+            total: 2,
+            limit: 10,
+            offset: 0,
+            results: [
+              {
+                reference: "John 3:16",
+                text: "For God so loved the world, that he gave his only begotten Son...",
+                highlight:
+                  "For God so <em>loved</em> the world, that he gave his only begotten Son...",
+              },
+              {
+                reference: "1 John 4:19",
+                text: "We love him, because he first loved us.",
+                highlight:
+                  "We <em>love</em> him, because he first <em>loved</em> us.",
+              },
+            ],
+          },
         },
       },
-      400
-    );
-  }
+      description: "Search results with highlighted matches",
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+          example: {
+            error: {
+              code: "MISSING_QUERY",
+              message: "Missing q query parameter",
+            },
+          },
+        },
+      },
+      description: "Missing or invalid query parameter",
+    },
+    404: {
+      content: {
+        "application/json": {
+          schema: ErrorResponseSchema,
+          example: {
+            error: {
+              code: "TRANSLATION_NOT_FOUND",
+              message: "Translation 'en-unknown' not found",
+            },
+          },
+        },
+      },
+      description: "Translation not found",
+    },
+  },
+});
 
+search.openapi(searchRoute, async (c) => {
   const {
     q: query,
-    language: langParam,
     translation: translationId,
-    limit,
-    offset,
-  } = parsedQuery.data;
-  const language = langParam ?? DEFAULT_LANGUAGE;
+    limit: limitStr,
+    offset: offsetStr,
+  } = c.req.valid("query");
 
-  const translation = translationId
-    ? await getTranslationMeta(translationId)
-    : await getDefaultTranslation(language);
+  const limit = Math.min(limitStr ? parseInt(limitStr, 10) : 10, 100);
+  const offset = offsetStr ? parseInt(offsetStr, 10) : 0;
+
+  const translation = await getTranslationMeta(translationId ?? DEFAULT_TRANSLATION);
 
   if (!translation) {
     return c.json(
       {
         error: {
           code: "TRANSLATION_NOT_FOUND",
-          message: `Translation '${translationId ?? language}' not found`,
+          message: `Translation '${translationId ?? DEFAULT_TRANSLATION}' not found`,
         },
       },
       404
@@ -76,13 +158,9 @@ search.get("/", async (c) => {
     offset
   );
 
-  const results: SearchResult[] = dbResults.map((row) => {
+  const results = dbResults.map((row) => {
     const bookData = getBookByNumber(row.book);
-    const bookName = bookData
-      ? language === "fr"
-        ? bookData.names.fr
-        : bookData.names.en
-      : `Book ${row.book}`;
+    const bookName = bookData ? bookData.names.en : `Book ${row.book}`;
 
     return {
       reference: `${bookName} ${row.chapter}:${row.verse}`,
@@ -91,17 +169,17 @@ search.get("/", async (c) => {
     };
   });
 
-  const response: SearchResponse = {
-    query,
-    translation: translation.id,
-    language,
-    total,
-    limit,
-    offset,
-    results,
-  };
-
-  return c.json(response);
+  return c.json(
+    {
+      query,
+      translation: translation.id,
+      total,
+      limit,
+      offset,
+      results,
+    },
+    200
+  );
 });
 
 export default search;

@@ -1,16 +1,60 @@
 import { describe, test, expect } from "bun:test";
 import app from "../index";
 
+interface VerseResponse {
+  reference: string;
+  translation: string;
+  book: { id: string; name: string };
+  chapter: number;
+  verse: number;
+  text: string;
+}
+
+interface VerseRangeResponse {
+  reference: string;
+  translation: string;
+  book: { id: string; name: string };
+  chapter: number;
+  verses: Array<{ number: number; text: string }>;
+}
+
+interface MultipleVersesResponse {
+  translation: string;
+  verses: Array<{
+    reference: string;
+    book: string;
+    chapter: number;
+    verse: number;
+    text: string;
+  }>;
+}
+
+interface CompareResponse {
+  reference: string;
+  book: { id: string };
+  chapter: number;
+  verse: number;
+  comparisons: Array<{
+    translation: string;
+    translationName: string;
+    bookName: string;
+    text: string;
+  }>;
+}
+
+interface ErrorResponse {
+  error: { code: string; message: string };
+}
+
 describe("Verses Endpoints", () => {
   describe("GET /verses/:ref (single verse)", () => {
     test("returns Genesis 1:1", async () => {
       const res = await app.request("/verses/gen.1.1");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as VerseResponse;
       expect(data.reference).toBe("Genesis 1:1");
-      expect(data.translation).toBe("en-kjv");
-      expect(data.language).toBe("en");
+      expect(data.translation).toBe("englishkj");
       expect(data.book.id).toBe("gen");
       expect(data.book.name).toBe("Genesis");
       expect(data.chapter).toBe(1);
@@ -22,7 +66,7 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses/jhn.3.16");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as VerseResponse;
       expect(data.reference).toBe("John 3:16");
       expect(data.book.id).toBe("jhn");
       expect(data.chapter).toBe(3);
@@ -34,33 +78,23 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses/GEN.1.1");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as VerseResponse;
       expect(data.book.id).toBe("gen");
     });
 
-    test("returns French book name with language parameter", async () => {
-      const res = await app.request("/verses/gen.1.1?language=fr");
-      expect(res.status).toBe(200);
-
-      const data = await res.json();
-      expect(data.language).toBe("fr");
-      expect(data.book.name).toBe("Genèse");
-      expect(data.reference).toBe("Genèse 1:1");
-    });
-
     test("uses specified translation", async () => {
-      const res = await app.request("/verses/gen.1.1?translation=en-niv");
+      const res = await app.request("/verses/gen.1.1?translation=englishniv");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
-      expect(data.translation).toBe("en-niv");
+      const data = (await res.json()) as VerseResponse;
+      expect(data.translation).toBe("englishniv");
     });
 
     test("returns INVALID_REFERENCE for malformed format", async () => {
       const res = await app.request("/verses/invalid");
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("INVALID_REFERENCE");
     });
 
@@ -68,7 +102,7 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses/gen.1");
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("INVALID_REFERENCE");
     });
 
@@ -76,7 +110,7 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses/gen");
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("INVALID_REFERENCE");
     });
 
@@ -84,7 +118,7 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses/xyz.1.1");
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("INVALID_REFERENCE");
       expect(data.error.message).toContain("Unknown book");
     });
@@ -93,7 +127,7 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses/gen.999.1");
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("INVALID_REFERENCE");
       expect(data.error.message).toContain("Invalid chapter");
     });
@@ -102,7 +136,7 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses/gen.0.1");
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("INVALID_REFERENCE");
     });
 
@@ -110,7 +144,7 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses/gen.1.999");
       expect(res.status).toBe(404);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("VERSE_NOT_FOUND");
     });
 
@@ -118,7 +152,7 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses/gen.1.1?translation=invalid");
       expect(res.status).toBe(404);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("TRANSLATION_NOT_FOUND");
     });
   });
@@ -128,7 +162,7 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses/psa.23.1-6");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as VerseRangeResponse;
       expect(data.reference).toBe("Psalms 23:1-6");
       expect(data.book.id).toBe("psa");
       expect(data.chapter).toBe(23);
@@ -138,7 +172,7 @@ describe("Verses Endpoints", () => {
 
     test("verse range includes correct verse numbers", async () => {
       const res = await app.request("/verses/psa.23.1-3");
-      const data = await res.json();
+      const data = (await res.json()) as VerseRangeResponse;
 
       expect(data.verses[0].number).toBe(1);
       expect(data.verses[1].number).toBe(2);
@@ -147,7 +181,7 @@ describe("Verses Endpoints", () => {
 
     test("each verse in range has text", async () => {
       const res = await app.request("/verses/psa.23.1-6");
-      const data = await res.json();
+      const data = (await res.json()) as VerseRangeResponse;
 
       for (const verse of data.verses) {
         expect(typeof verse.number).toBe("number");
@@ -158,18 +192,18 @@ describe("Verses Endpoints", () => {
 
     test("Psalm 23:1 contains 'The LORD is my shepherd'", async () => {
       const res = await app.request("/verses/psa.23.1-6");
-      const data = await res.json();
+      const data = (await res.json()) as VerseRangeResponse;
 
       const verse1 = data.verses.find((v) => v.number === 1);
-      expect(verse1.text).toContain("LORD");
-      expect(verse1.text).toContain("shepherd");
+      expect(verse1!.text).toContain("LORD");
+      expect(verse1!.text).toContain("shepherd");
     });
 
     test("returns INVALID_REFERENCE when end < start", async () => {
       const res = await app.request("/verses/psa.23.6-1");
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("INVALID_REFERENCE");
       expect(data.error.message).toContain("End verse must be >= start verse");
     });
@@ -178,7 +212,7 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses/gen.1.1-1");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as VerseResponse;
       expect(data.verse).toBe(1);
     });
   });
@@ -188,16 +222,15 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses?refs=jhn.3.16,rom.8.28");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
-      expect(data.translation).toBe("en-kjv");
-      expect(data.language).toBe("en");
+      const data = (await res.json()) as MultipleVersesResponse;
+      expect(data.translation).toBe("englishkj");
       expect(Array.isArray(data.verses)).toBe(true);
       expect(data.verses.length).toBe(2);
     });
 
     test("each verse has correct structure", async () => {
       const res = await app.request("/verses?refs=jhn.3.16,rom.8.28");
-      const data = await res.json();
+      const data = (await res.json()) as MultipleVersesResponse;
 
       for (const verse of data.verses) {
         expect(verse.reference).toBeDefined();
@@ -210,24 +243,24 @@ describe("Verses Endpoints", () => {
 
     test("returns John 3:16 and Romans 8:28 correctly", async () => {
       const res = await app.request("/verses?refs=jhn.3.16,rom.8.28");
-      const data = await res.json();
+      const data = (await res.json()) as MultipleVersesResponse;
 
       const john = data.verses.find((v) => v.book === "John");
       expect(john).toBeDefined();
-      expect(john.chapter).toBe(3);
-      expect(john.verse).toBe(16);
+      expect(john!.chapter).toBe(3);
+      expect(john!.verse).toBe(16);
 
       const romans = data.verses.find((v) => v.book === "Romans");
       expect(romans).toBeDefined();
-      expect(romans.chapter).toBe(8);
-      expect(romans.verse).toBe(28);
+      expect(romans!.chapter).toBe(8);
+      expect(romans!.verse).toBe(28);
     });
 
     test("handles whitespace in refs parameter", async () => {
       const res = await app.request("/verses?refs=jhn.3.16, rom.8.28");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as MultipleVersesResponse;
       expect(data.verses.length).toBe(2);
     });
 
@@ -235,7 +268,7 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses");
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("MISSING_REFS");
     });
 
@@ -243,36 +276,27 @@ describe("Verses Endpoints", () => {
       const res = await app.request("/verses?refs=jhn.3.16,invalid");
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("INVALID_REFERENCE");
     });
 
     test("uses specified translation", async () => {
-      const res = await app.request("/verses?refs=jhn.3.16&translation=en-niv");
+      const res = await app.request("/verses?refs=jhn.3.16&translation=englishniv");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
-      expect(data.translation).toBe("en-niv");
-    });
-
-    test("returns French book names with language parameter", async () => {
-      const res = await app.request("/verses?refs=jhn.3.16&language=fr");
-      expect(res.status).toBe(200);
-
-      const data = await res.json();
-      expect(data.language).toBe("fr");
-      expect(data.verses[0].book).toBe("Jean");
+      const data = (await res.json()) as MultipleVersesResponse;
+      expect(data.translation).toBe("englishniv");
     });
   });
 
   describe("GET /verses/:ref/compare", () => {
     test("compares verse across translations", async () => {
       const res = await app.request(
-        "/verses/jhn.3.16/compare?translations=en-kjv,en-niv"
+        "/verses/jhn.3.16/compare?translations=englishkj,englishniv"
       );
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as CompareResponse;
       expect(data.reference).toBe("John 3:16");
       expect(data.book.id).toBe("jhn");
       expect(data.chapter).toBe(3);
@@ -282,13 +306,11 @@ describe("Verses Endpoints", () => {
 
     test("each comparison has required fields", async () => {
       const res = await app.request(
-        "/verses/jhn.3.16/compare?translations=en-kjv,en-niv"
+        "/verses/jhn.3.16/compare?translations=englishkj,englishniv"
       );
-      const data = await res.json();
+      const data = (await res.json()) as CompareResponse;
 
       for (const comparison of data.comparisons) {
-        expect(comparison.language).toBeDefined();
-        expect(comparison.languageName).toBeDefined();
         expect(comparison.translation).toBeDefined();
         expect(comparison.translationName).toBeDefined();
         expect(comparison.bookName).toBeDefined();
@@ -296,71 +318,42 @@ describe("Verses Endpoints", () => {
       }
     });
 
-    test("compares verse across languages", async () => {
-      const res = await app.request("/verses/jhn.3.16/compare?languages=en,fr");
-      expect(res.status).toBe(200);
-
-      const data = await res.json();
-      expect(Array.isArray(data.comparisons)).toBe(true);
-
-      const english = data.comparisons.find((c) => c.language === "en");
-      const french = data.comparisons.find((c) => c.language === "fr");
-
-      expect(english).toBeDefined();
-      expect(french).toBeDefined();
-      expect(english.languageName).toBe("English");
-      expect(french.languageName).toBe("French");
-    });
-
-    test("returns different book names for different languages", async () => {
-      const res = await app.request("/verses/gen.1.1/compare?languages=en,fr");
-      const data = await res.json();
-
-      const english = data.comparisons.find((c) => c.language === "en");
-      const french = data.comparisons.find((c) => c.language === "fr");
-
-      expect(english.bookName).toBe("Genesis");
-      expect(french.bookName).toBe("Genèse");
-    });
-
-    test("returns MISSING_PARAMETER when neither translations nor languages provided", async () => {
+    test("returns MISSING_PARAMETER when translations not provided", async () => {
       const res = await app.request("/verses/jhn.3.16/compare");
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("MISSING_PARAMETER");
-      expect(data.error.message).toContain(
-        "translations or languages query parameter is required"
-      );
+      expect(data.error.message).toContain("translations query parameter is required");
     });
 
     test("returns INVALID_REFERENCE for malformed reference", async () => {
       const res = await app.request(
-        "/verses/invalid/compare?translations=en-kjv"
+        "/verses/invalid/compare?translations=englishkj"
       );
       expect(res.status).toBe(400);
 
-      const data = await res.json();
+      const data = (await res.json()) as ErrorResponse;
       expect(data.error.code).toBe("INVALID_REFERENCE");
     });
 
     test("handles non-existent translations gracefully", async () => {
       const res = await app.request(
-        "/verses/jhn.3.16/compare?translations=en-kjv,nonexistent"
+        "/verses/jhn.3.16/compare?translations=englishkj,nonexistent"
       );
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as CompareResponse;
       expect(data.comparisons.length).toBeGreaterThanOrEqual(1);
     });
 
     test("handles whitespace in translations parameter", async () => {
       const res = await app.request(
-        "/verses/jhn.3.16/compare?translations=en-kjv, en-niv"
+        "/verses/jhn.3.16/compare?translations=englishkj, englishniv"
       );
       expect(res.status).toBe(200);
 
-      const data = await res.json();
+      const data = (await res.json()) as CompareResponse;
       expect(data.comparisons.length).toBe(2);
     });
   });

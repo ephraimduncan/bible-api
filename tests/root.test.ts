@@ -3,39 +3,56 @@ import app from "../index";
 
 describe("Root Endpoint", () => {
   describe("GET /", () => {
-    test("returns API information", async () => {
+    test("returns Scalar API documentation", async () => {
       const res = await app.request("/");
       expect(res.status).toBe(200);
 
-      const data = await res.json();
-      expect(data.name).toBe("Bible API");
-      expect(data.version).toBe("1.0.0");
-      expect(data.endpoints).toBeDefined();
-      expect(data.defaults).toBeDefined();
+      const html = await res.text();
+      expect(html).toContain("<!doctype html>");
+      expect(html).toContain("Bible API Documentation");
+    });
+  });
+
+  describe("GET /openapi.json", () => {
+    test("returns OpenAPI specification", async () => {
+      const res = await app.request("/openapi.json");
+      expect(res.status).toBe(200);
+
+      const data = (await res.json()) as {
+        openapi: string;
+        info: { title: string; version: string };
+        paths: Record<string, unknown>;
+        tags: Array<{ name: string }>;
+      };
+      expect(data.openapi).toBe("3.1.0");
+      expect(data.info.title).toBe("Bible API");
+      expect(data.info.version).toBe("1.0.0");
     });
 
-    test("includes all endpoint documentation", async () => {
-      const res = await app.request("/");
-      const data = await res.json();
+    test("includes all API paths", async () => {
+      const res = await app.request("/openapi.json");
+      const data = (await res.json()) as { paths: Record<string, unknown> };
 
-      expect(data.endpoints.languages).toBe("GET /languages");
-      expect(data.endpoints.translations).toBe("GET /translations");
-      expect(data.endpoints.books).toBe("GET /books");
-      expect(data.endpoints.book).toBe("GET /books/:id");
-      expect(data.endpoints.chapters).toBe("GET /books/:id/chapters");
-      expect(data.endpoints.chapter).toBe("GET /books/:id/chapters/:num");
-      expect(data.endpoints.verse).toBe("GET /verses/:ref");
-      expect(data.endpoints.multipleVerses).toBe("GET /verses?refs=...");
-      expect(data.endpoints.compare).toBe("GET /verses/:ref/compare");
-      expect(data.endpoints.search).toBe("GET /search?q=...");
+      expect(data.paths["/translations"]).toBeDefined();
+      expect(data.paths["/books"]).toBeDefined();
+      expect(data.paths["/books/{id}"]).toBeDefined();
+      expect(data.paths["/books/{id}/chapters"]).toBeDefined();
+      expect(data.paths["/books/{id}/chapters/{chapter}"]).toBeDefined();
+      expect(data.paths["/verses"]).toBeDefined();
+      expect(data.paths["/verses/{ref}"]).toBeDefined();
+      expect(data.paths["/verses/{ref}/compare"]).toBeDefined();
+      expect(data.paths["/search"]).toBeDefined();
     });
 
-    test("includes default language and translation", async () => {
-      const res = await app.request("/");
-      const data = await res.json();
+    test("includes all tags", async () => {
+      const res = await app.request("/openapi.json");
+      const data = (await res.json()) as { tags: Array<{ name: string }> };
 
-      expect(data.defaults.language).toBe("en");
-      expect(data.defaults.translation).toBe("en-kjv");
+      const tagNames = data.tags.map((t) => t.name);
+      expect(tagNames).toContain("Translations");
+      expect(tagNames).toContain("Books");
+      expect(tagNames).toContain("Verses");
+      expect(tagNames).toContain("Search");
     });
   });
 
@@ -44,7 +61,7 @@ describe("Root Endpoint", () => {
       const res = await app.request("/invalid-endpoint");
       expect(res.status).toBe(404);
 
-      const data = await res.json();
+      const data = (await res.json()) as { error: { code: string; message: string } };
       expect(data.error.code).toBe("NOT_FOUND");
       expect(data.error.message).toBe("Endpoint not found");
     });
@@ -53,7 +70,7 @@ describe("Root Endpoint", () => {
       const res = await app.request("/some/deep/invalid/path");
       expect(res.status).toBe(404);
 
-      const data = await res.json();
+      const data = (await res.json()) as { error: { code: string } };
       expect(data.error.code).toBe("NOT_FOUND");
     });
   });

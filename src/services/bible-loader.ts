@@ -1,20 +1,17 @@
 import type { TranslationMeta, Verse, TranslationRow } from "../schemas";
 import {
   getAllTranslations,
-  getTranslationsByLanguage as dbGetTranslationsByLanguage,
   getTranslationById,
   getVerse as dbGetVerse,
   getVerseRange as dbGetVerseRange,
   getChapterVerses as dbGetChapterVerses,
   getChapterCounts,
-  getAvailableLanguages as dbGetAvailableLanguages,
 } from "./database";
 
 function rowToMeta(row: TranslationRow): TranslationMeta {
   return {
     id: row.id,
     name: row.name,
-    language: row.language,
     status: row.status || "Unknown",
     filename: row.filename || "",
   };
@@ -30,37 +27,6 @@ export async function getTranslationMeta(
 ): Promise<TranslationMeta | undefined> {
   const row = getTranslationById(id);
   return row ? rowToMeta(row) : undefined;
-}
-
-export async function getTranslationsByLanguage(
-  language: string
-): Promise<TranslationMeta[]> {
-  const rows = dbGetTranslationsByLanguage(language);
-  return rows.map(rowToMeta);
-}
-
-export async function getDefaultTranslation(
-  language: string
-): Promise<TranslationMeta | undefined> {
-  const translations = await getTranslationsByLanguage(language);
-  if (translations.length === 0) return undefined;
-
-  const defaults: Record<string, string> = {
-    en: "en-kjv",
-    fr: "fr-lsg",
-  };
-
-  const defaultId = defaults[language];
-  if (defaultId) {
-    const found = translations.find((t) => t.id === defaultId);
-    if (found) return found;
-  }
-
-  return translations[0];
-}
-
-export async function getAvailableLanguages(): Promise<string[]> {
-  return dbGetAvailableLanguages();
 }
 
 export function getVerseFromDb(

@@ -16,8 +16,6 @@ export {
   type ParsedBible,
   TranslationMetaSchema,
   type TranslationMeta,
-  LanguageInfoSchema,
-  type LanguageInfo,
   ParsedReferenceSchema,
   type ParsedReference,
   BookNamesSchema,
@@ -28,8 +26,6 @@ export {
 
 // API response schemas
 export {
-  LanguagesResponseSchema,
-  type LanguagesResponse,
   TranslationItemSchema,
   type TranslationItem,
   TranslationsResponseSchema,
@@ -84,14 +80,12 @@ export {
 
 // Query parameter schemas
 export {
-  LanguageQuerySchema,
-  type LanguageQuery,
-  TranslationQuerySchema,
-  type TranslationQuery,
+  TranslationOnlyQuerySchema,
+  type TranslationOnlyQuery,
   SearchQuerySchema,
   type SearchQuery,
   RefsQuerySchema,
   type RefsQuery,
-  CompareQuerySchema,
-  type CompareQuery,
+  CompareTranslationsQuerySchema,
+  type CompareTranslationsQuery,
 } from "./query-params";

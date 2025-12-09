@@ -1,18 +1,11 @@
 import { z } from "zod";
-import { LanguageInfoSchema, TestamentSchema } from "./bible";
+import { TestamentSchema } from "./bible";
 
 // API Response schemas
-
-export const LanguagesResponseSchema = z.object({
-  default: z.string(),
-  languages: z.array(LanguageInfoSchema),
-});
-export type LanguagesResponse = z.infer<typeof LanguagesResponseSchema>;
 
 export const TranslationItemSchema = z.object({
   id: z.string(),
   name: z.string(),
-  language: z.string(),
   status: z.string(),
   default: z.boolean().optional(),
 });
@@ -20,7 +13,6 @@ export type TranslationItem = z.infer<typeof TranslationItemSchema>;
 
 export const TranslationsResponseSchema = z.object({
   default: z.string(),
-  language: z.string().optional(),
   translations: z.array(TranslationItemSchema),
 });
 export type TranslationsResponse = z.infer<typeof TranslationsResponseSchema>;
@@ -35,7 +27,6 @@ export type BookListItem = z.infer<typeof BookListItemSchema>;
 
 export const BooksResponseSchema = z.object({
   translation: z.string(),
-  language: z.string(),
   books: z.array(BookListItemSchema),
 });
 export type BooksResponse = z.infer<typeof BooksResponseSchema>;
@@ -43,7 +34,6 @@ export type BooksResponse = z.infer<typeof BooksResponseSchema>;
 export const BookResponseSchema = z.object({
   id: z.string(),
   name: z.string(),
-  language: z.string(),
   testament: TestamentSchema,
   chapters: z.number(),
 });
@@ -63,7 +53,6 @@ export type ChapterSummary = z.infer<typeof ChapterSummarySchema>;
 
 export const ChaptersResponseSchema = z.object({
   book: BookRefSchema,
-  language: z.string(),
   chapters: z.array(ChapterSummarySchema),
 });
 export type ChaptersResponse = z.infer<typeof ChaptersResponseSchema>;
@@ -76,7 +65,6 @@ export type VerseText = z.infer<typeof VerseTextSchema>;
 
 export const ChapterResponseSchema = z.object({
   translation: z.string(),
-  language: z.string(),
   book: BookRefSchema,
   chapter: z.number(),
   verses: z.array(VerseTextSchema),
@@ -86,7 +74,6 @@ export type ChapterResponse = z.infer<typeof ChapterResponseSchema>;
 export const VerseResponseSchema = z.object({
   reference: z.string(),
   translation: z.string(),
-  language: z.string(),
   book: BookRefSchema,
   chapter: z.number(),
   verse: z.number(),
@@ -97,7 +84,6 @@ export type VerseResponse = z.infer<typeof VerseResponseSchema>;
 export const VersesRangeResponseSchema = z.object({
   reference: z.string(),
   translation: z.string(),
-  language: z.string(),
   book: BookRefSchema,
   chapter: z.number(),
   verses: z.array(VerseTextSchema),
@@ -115,14 +101,11 @@ export type MultipleVerseItem = z.infer<typeof MultipleVerseItemSchema>;
 
 export const MultipleVersesResponseSchema = z.object({
   translation: z.string(),
-  language: z.string(),
   verses: z.array(MultipleVerseItemSchema),
 });
 export type MultipleVersesResponse = z.infer<typeof MultipleVersesResponseSchema>;
 
 export const ComparisonItemSchema = z.object({
-  language: z.string(),
-  languageName: z.string(),
   translation: z.string(),
   translationName: z.string(),
   bookName: z.string(),
@@ -149,7 +132,6 @@ export type SearchResult = z.infer<typeof SearchResultSchema>;
 export const SearchResponseSchema = z.object({
   query: z.string(),
   translation: z.string(),
-  language: z.string(),
   total: z.number(),
   limit: z.number(),
   offset: z.number(),

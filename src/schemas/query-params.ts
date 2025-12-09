@@ -2,20 +2,13 @@ import { z } from "zod";
 
 // Query parameter schemas for API routes
 
-export const LanguageQuerySchema = z.object({
-  language: z.string().optional(),
-});
-export type LanguageQuery = z.infer<typeof LanguageQuerySchema>;
-
-export const TranslationQuerySchema = z.object({
-  language: z.string().optional(),
+export const TranslationOnlyQuerySchema = z.object({
   translation: z.string().optional(),
 });
-export type TranslationQuery = z.infer<typeof TranslationQuerySchema>;
+export type TranslationOnlyQuery = z.infer<typeof TranslationOnlyQuerySchema>;
 
 export const SearchQuerySchema = z.object({
-  q: z.string({ required_error: "Missing q query parameter" }).min(1, "Missing q query parameter"),
-  language: z.string().optional(),
+  q: z.string().min(1, "Missing q query parameter"),
   translation: z.string().optional(),
   limit: z
     .string()
@@ -35,13 +28,11 @@ export type SearchQuery = z.infer<typeof SearchQuerySchema>;
 
 export const RefsQuerySchema = z.object({
   refs: z.string().min(1, "refs parameter is required"),
-  language: z.string().optional(),
   translation: z.string().optional(),
 });
 export type RefsQuery = z.infer<typeof RefsQuerySchema>;
 
-export const CompareQuerySchema = z.object({
+export const CompareTranslationsQuerySchema = z.object({
   translations: z.string().optional(),
-  languages: z.string().optional(),
 });
-export type CompareQuery = z.infer<typeof CompareQuerySchema>;
+export type CompareTranslationsQuery = z.infer<typeof CompareTranslationsQuerySchema>;

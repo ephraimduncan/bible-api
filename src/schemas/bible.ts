@@ -46,19 +46,10 @@ export type ParsedBible = z.infer<typeof ParsedBibleSchema>;
 export const TranslationMetaSchema = z.object({
   id: z.string(),
   name: z.string(),
-  language: z.string(),
   status: z.string(),
   filename: z.string(),
 });
 export type TranslationMeta = z.infer<typeof TranslationMetaSchema>;
-
-export const LanguageInfoSchema = z.object({
-  code: z.string(),
-  name: z.string(),
-  native_name: z.string(),
-  default: z.boolean().optional(),
-});
-export type LanguageInfo = z.infer<typeof LanguageInfoSchema>;
 
 export const ParsedReferenceSchema = z.object({
   book: z.string(),

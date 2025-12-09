@@ -5,7 +5,6 @@ import { z } from "zod";
 export const TranslationRowSchema = z.object({
   id: z.string(),
   name: z.string(),
-  language: z.string(),
   status: z.string().nullable(),
   filename: z.string().nullable(),
 });
